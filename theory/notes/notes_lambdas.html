@@ -244,6 +244,21 @@
   ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
   ol li { margin: 0.3rem 0; }
 
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
   footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
 
   @media (max-width: 640px) {
@@ -263,7 +278,7 @@
 <div class="masthead">
   <div class="series-label">Closures · C++ Companion</div>
   <h1>Lambdas</h1>
-  <div class="subtitle">Anonymous function objects with captured state — capture modes, mutable, and lambda vs. std::function</div>
+  <div class="subtitle">Anonymous function objects with captured state — capture modes, mutable, recursion, and lambda vs. std::function</div>
 </div>
 
 <!-- ═══════════ TOC ═══════════ -->
@@ -271,12 +286,20 @@
   <h2>Contents</h2>
   <ol>
     <li><a href="#s1">Anatomy of a Lambda Expression</a></li>
-    <li><a href="#s2">Capture Modes</a></li>
+    <li><a href="#s2">Capture Modes</a>
+      <ul class="sub">
+        <li><a href="#s2-init">Init-Capture: Moving a Resource In</a></li>
+      </ul>
+    </li>
     <li><a href="#s3">const by Default, and mutable</a></li>
     <li><a href="#s4">Generic &amp; Templated Lambdas</a></li>
-    <li><a href="#s5">What a Lambda Actually Is</a></li>
-    <li><a href="#s6">Lambda vs. std::function</a></li>
-    <li><a href="#s7">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s5">Recursive Lambdas</a></li>
+    <li><a href="#s6">What a Lambda Actually Is</a></li>
+    <li><a href="#s7">Lambda vs. std::function</a></li>
+    <li><a href="#s8">Capture Cost Compared</a></li>
+    <li><a href="#s9">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s10">Self-Test</a></li>
+    <li><a href="#s11">Decision Cheat Sheet</a></li>
   </ol>
 </nav>
 
@@ -305,6 +328,8 @@
   <div class="flabel">minimal.cpp</div>
   <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> square = [](<span class="kw">int</span> n) { <span class="kw">return</span> n * n; };
 <span class="ln">2</span> square(6);   <span class="cm">// 36</span></div>
+
+  <p class="dim">Since C++17, a lambda whose captures and parameters are all usable in a constant expression can itself be <code>constexpr</code> (implicitly, or explicitly marked) — it can then be evaluated at compile time, e.g. as a <code>std::array</code> size or a template argument.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -358,6 +383,18 @@
     <div class="ctitle">⚠ Dangling Capture</div>
     A lambda captured by reference, or by <code>[this]</code>, is only as safe as the lifetime of what it refers to. If the lambda is stored (e.g. as a <code>std::function</code> callback) and outlives the local variable or the object it points to, calling it is undefined behavior — this is the single most common lambda bug in async/callback-heavy code.
   </div>
+
+  <h3 id="s2-init">2.1 Init-Capture: Moving a Resource In</h3>
+  <p>An init-capture isn't limited to renaming or copying an existing variable — its initializer can be any expression, which is exactly what makes it possible to move a move-only resource (like a <code>unique_ptr</code>) into a lambda's closure, something plain <code>[x]</code> or <code>[&amp;x]</code> can't do.</p>
+
+  <div class="flabel">init_capture_move.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> owned = std::<span class="fn">make_unique</span>&lt;<span class="ty">Widget</span>&gt;(42);
+<span class="ln">2</span> <span class="kw">auto</span> task = [w = std::<span class="fn">move</span>(owned)]() {
+<span class="ln">3</span>     w-&gt;<span class="fn">process</span>();       <span class="cm">// the lambda now owns the Widget</span>
+<span class="ln">4</span> };
+<span class="ln">5</span> <span class="cm">// owned is null here — ownership moved into task's closure</span></div>
+
+  <p class="dim">This is also the standard way to give a lambda a custom-named copy under a different name, e.g. <code>[total = total * 2]</code> — the left-hand name is a brand-new closure member, unrelated to whether a variable of that name exists outside.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -403,11 +440,44 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 5: CLOSURE TYPE                                    -->
+<!--  SECTION 5: RECURSIVE LAMBDAS                                -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s5">
   <div class="section-header">
     <div class="section-number">5</div>
+    <div class="section-title">Recursive Lambdas</div>
+  </div>
+
+  <p>A lambda has no name inside its own body — the name you assign it (<code>auto factorial = ...</code>) doesn't exist yet while the compiler is still parsing the right-hand side, so <code>factorial(n - 1)</code> can't be written directly inside. There are two standard workarounds.</p>
+
+  <h3 id="s5-fn">5.1 Init-Capture a std::function Reference</h3>
+  <div class="flabel">recursive_std_function.cpp</div>
+  <div class="code-block"><span class="ln">1</span> std::function&lt;<span class="kw">int</span>(<span class="kw">int</span>)&gt; factorial = [&amp;factorial](<span class="kw">int</span> n) -&gt; <span class="kw">int</span> {
+<span class="ln">2</span>     <span class="kw">return</span> n &lt;= 1 ? 1 : n * factorial(n - 1);
+<span class="ln">3</span> };
+<span class="ln">4</span> factorial(5);   <span class="cm">// 120</span></div>
+  <p class="dim">This works because <code>factorial</code> the <em>variable</em> already exists (as a <code>std::function</code>) by the time the lambda body actually runs, even though it didn't exist while the lambda was being defined. The capture is by reference to that outer variable, not to the lambda's own closure.</p>
+
+  <h3 id="s5-deducing">5.2 C++23: Deducing this</h3>
+  <p>C++23's "deducing <code>this</code>" feature lets a lambda take an explicit first parameter representing itself, giving it a name to recurse through without any <code>std::function</code> indirection:</p>
+  <div class="flabel">recursive_deducing_this.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> factorial = [](<span class="kw">this</span> <span class="kw">auto</span> self, <span class="kw">int</span> n) -&gt; <span class="kw">int</span> {
+<span class="ln">2</span>     <span class="kw">return</span> n &lt;= 1 ? 1 : n * self(n - 1);
+<span class="ln">3</span> };
+<span class="ln">4</span> factorial(5);   <span class="cm">// 120 — no std::function, no heap allocation</span></div>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    The <code>std::function</code> version pays for type erasure (§7–8) on every recursive call. The deducing-<code>this</code> version keeps the lambda's own concrete closure type throughout the recursion — closer in cost to a hand-written recursive function.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 6: CLOSURE TYPE                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-number">6</div>
     <div class="section-title">What a Lambda Actually Is</div>
   </div>
 
@@ -429,14 +499,19 @@
     <li>A capture-less lambda (<code>[]</code>) implicitly converts to a plain function pointer, since it needs no stored state — useful for C APIs expecting a callback pointer.</li>
     <li>Because the type is compiler-generated and often uninlinable-by-name, storing a lambda in <code>auto</code> is free; storing it in <code>std::function</code> is not.</li>
   </ul>
+
+  <div class="callout tip">
+    <div class="ctitle">✓ Where This Shows Up Elsewhere</div>
+    A lambda being "just a class with a captured member and an <code>operator()</code>" is exactly the mechanism behind lambda-as-custom-deleter for <code>unique_ptr</code>: <code>[](int* fd){ close(*fd); delete fd; }</code> is a small closure type, and <code>unique_ptr&lt;int, decltype(deleter)&gt;</code> simply stores it as its second template argument. No special-casing is needed on the smart pointer's side.
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 6: STD::FUNCTION                                   -->
+<!--  SECTION 7: STD::FUNCTION                                   -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s6">
+<div class="section" id="s7">
   <div class="section-header">
-    <div class="section-number">6</div>
+    <div class="section-number">7</div>
     <div class="section-title">Lambda vs. std::function</div>
   </div>
 
@@ -458,25 +533,148 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 7: PITFALLS                                        -->
+<!--  SECTION 8: CAPTURE COST                                    -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s7">
+<div class="section" id="s8">
   <div class="section-header">
-    <div class="section-number">7</div>
+    <div class="section-number">8</div>
+    <div class="section-title">Capture Cost Compared</div>
+  </div>
+  <p>What a closure actually costs depends entirely on what it captures and how it's stored — there's no single answer to "how expensive is a lambda."</p>
+
+  <div class="cx-grid">
+    <div class="cx-cell">
+      <span class="cx-name">capture-less []</span>
+      <span class="cx-big">0 bytes*</span>
+      <span class="cx-label">empty class; converts to a raw fn pointer</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">by-value [x]</span>
+      <span class="cx-big">sizeof(x)</span>
+      <span class="cx-label">one member per captured variable</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">by-ref [&amp;x]</span>
+      <span class="cx-big">1×ptr</span>
+      <span class="cx-label">stores a reference, regardless of x's size</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">std::function</span>
+      <span class="cx-big">vtable + maybe heap</span>
+      <span class="cx-label">type erasure cost on every call</span>
+    </div>
+  </div>
+  <p class="dim">*Formally never zero (C++ objects have non-zero size so distinct instances have distinct addresses), but empty-base optimization typically makes it free in practice, and a capture-less lambda decays to a bare function pointer whenever a context needs one.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    Passing a lambda directly to a template (e.g. <code>std::sort(v.begin(), v.end(), cmp)</code>) lets the compiler see the lambda's concrete type and inline through it — often compiling down to the same code as a hand-written loop. The same lambda passed through a <code>std::function&lt;bool(int,int)&gt;</code> parameter instead loses that visibility: the call becomes an indirect (virtual-like) dispatch the compiler generally can't inline through.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 9: PITFALLS                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-number">9</div>
     <div class="section-title">Pitfalls &amp; Gotchas</div>
   </div>
   <ul>
     <li><code>[=]</code> and <code>[&amp;]</code> capture <em>everything</em> the body touches, including things you might not have meant to — prefer naming captures explicitly (<code>[threshold, &amp;total]</code>) once a lambda is non-trivial, both for clarity and to avoid accidental dangling references.</li>
     <li><code>[this]</code> captures the object by pointer, not by value — a copy of the lambda does not get a fresh copy of the object; both copies still point at the same <code>*this</code>.</li>
-    <li>A recursive lambda can't naturally refer to itself by name (there's no name yet during its own definition) — use an init-capture of a <code>std::function</code>, or, in C++23, the <code>this_lambda</code> deducing-this feature.</li>
     <li>Capturing a large object by value on a hot path (e.g. inside a loop passed to an algorithm) copies it on every lambda construction — capture by reference or by pointer if the lambda is constructed repeatedly.</li>
     <li>An immediately-invoked lambda, <code>[]{ ... }();</code>, is a legitimate way to initialize a <code>const</code> variable with multi-statement logic — don't mistake it for a mistake when reading someone else's code.</li>
+    <li>Prior to C++20, a structured binding (<code>auto [a, b] = pair;</code>) can't be captured directly by name — <code>[a]{ return a; }</code> is a compile error pre-C++20. The historical workaround is an init-capture with a fresh name: <code>[a = a]{ return a; }</code>. C++20 permits the direct form.</li>
+    <li>Passing a capturing lambda where a plain C function pointer is expected only compiles if the lambda captures nothing — a capturing lambda has no such conversion, since the callback signature has nowhere to store the captured state.</li>
   </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: SELF-TEST                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try answering in your head first — these are pitched at the level a technical interview would ask.</p>
+
+  <details class="qa">
+    <summary>Why is a lambda's operator() const by default, and what does that mean for a value-captured variable?</summary>
+    <div class="qa-a">
+      <p>The compiler-generated closure type defaults to a <code>const operator()</code>, so members holding by-value captures can be read but not reassigned inside the body — even though the lambda owns its own independent copy. Adding <code>mutable</code> removes that <code>const</code>, letting the body reassign its own copies, without affecting the original variables outside.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why can't a lambda call itself by the name it's being assigned to?</summary>
+    <div class="qa-a">
+      <p>The variable name (e.g. <code>factorial</code>) doesn't exist yet while the compiler is still parsing the lambda's own body — the initialization of that variable only completes once the whole expression, including the lambda, has been parsed. Working around it means either capturing a reference to an already-existing outer variable of a named type like <code>std::function</code> (the name exists, even though its value is still being assigned), or using C++23's deducing-<code>this</code> to give the lambda a self-parameter directly.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What's the difference in cost between calling a lambda via auto vs. via std::function?</summary>
+    <div class="qa-a">
+      <p>Via <code>auto</code>, the compiler knows the lambda's exact concrete type and can inline through the call entirely — effectively free, same as a hand-written struct. Via <code>std::function</code>, the callable is type-erased behind a virtual-dispatch-like interface, which costs an indirect call per invocation and, for captures beyond the small-object-optimization buffer, a heap allocation on construction — and generally blocks inlining.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why does storing `[&total]` as a callback for later use risk undefined behavior?</summary>
+    <div class="qa-a">
+      <p>A reference capture doesn't extend the lifetime of what it refers to — it's just a reference, exactly like a hand-written one. If the lambda is stored (e.g. in a <code>std::function</code> member or an event queue) and invoked after <code>total</code>'s scope has ended, the reference is dangling and using it is undefined behavior. This is the most common lambda bug in callback- and async-heavy code.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>How would you move a unique_ptr into a lambda's closure?</summary>
+    <div class="qa-a">
+      <p>With an init-capture: <code>[w = std::move(ptr)]() { ... }</code>. Plain captures (<code>[w]</code> or <code>[&w]</code>) can't do this — <code>[w]</code> would try to copy-construct, which doesn't compile for a move-only type, and <code>[&w]</code> would only alias the original rather than transferring ownership. The init-capture's arbitrary initializer is what makes the move possible.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 11: CHEAT SHEET                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-number">11</div>
+    <div class="section-title">Decision Cheat Sheet</div>
+  </div>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Passed straight to an algorithm</h4>
+      <p><code>auto</code> / inline lambda literal. Zero overhead, and the compiler can usually inline through it.</p>
+    </div>
+    <div class="info-card">
+      <h4>Storing a callback as a class member</h4>
+      <p><code>std::function&lt;Sig&gt;</code> — you need a nameable type, and erasing the concrete closure type is the point.</p>
+    </div>
+    <div class="info-card">
+      <h4>Capturing a resource you no longer need outside</h4>
+      <p>Init-capture with <code>std::move</code>: <code>[x = std::move(x)]</code>.</p>
+    </div>
+    <div class="info-card">
+      <h4>Lambda that must recurse</h4>
+      <p><code>std::function&lt;Sig&gt;</code> self-reference for portability; deducing-<code>this</code> (C++23) if avoiding the erasure cost matters.</p>
+    </div>
+    <div class="info-card">
+      <h4>Lambda stored or returned for later use</h4>
+      <p>Capture by value, not by reference — reference captures are only as safe as the lambda's own lifetime relative to what they point at.</p>
+    </div>
+    <div class="info-card">
+      <h4>Callback for a C API expecting a function pointer</h4>
+      <p>Must capture nothing (<code>[]</code>) — only a capture-less lambda converts to a plain function pointer.</p>
+    </div>
+  </div>
 </div>
 
 <footer>
   C++ Lambdas · Closures Companion Notes<br>
-  Covers: Lambda Anatomy · Capture Modes · mutable · Generic Lambdas · The Closure Type · Lambda vs. std::function
+  Covers: Lambda Anatomy · Capture Modes &amp; Init-Capture · mutable · Generic Lambdas · Recursive Lambdas · The Closure Type · Lambda vs. std::function · Capture Cost · Self-Test
 </footer>
 
 </body>

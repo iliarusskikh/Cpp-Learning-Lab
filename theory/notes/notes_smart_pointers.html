@@ -230,6 +230,21 @@
   ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
   ol li { margin: 0.3rem 0; }
 
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
   footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
 
   @media (max-width: 640px) {
@@ -246,7 +261,7 @@
 <div class="masthead">
   <div class="series-label">Memory Management · C++ Companion</div>
   <h1>Smart Pointers</h1>
-  <div class="subtitle">Ownership as a type, not a convention — unique_ptr, shared_ptr, weak_ptr, and RAII</div>
+  <div class="subtitle">Ownership as a type, not a convention — unique_ptr, shared_ptr, weak_ptr, and the RAII idiom behind them</div>
 </div>
 
 <!-- ═══════════ TOC ═══════════ -->
@@ -254,26 +269,35 @@
   <h2>Contents</h2>
   <ol>
     <li><a href="#s1">Why Smart Pointers Exist</a></li>
-    <li><a href="#s2">std::unique_ptr</a>
+    <li><a href="#s2">Ownership Models at a Glance</a></li>
+    <li><a href="#s3">std::unique_ptr</a>
       <ul class="sub">
-        <li><a href="#s2-props">Key Properties</a></li>
-        <li><a href="#s2-deleter">Custom Deleters</a></li>
-        <li><a href="#s2-pass">Passing to Functions</a></li>
+        <li><a href="#s3-props">Key Properties</a></li>
+        <li><a href="#s3-deleter">Custom Deleters</a></li>
+        <li><a href="#s3-arr">Arrays</a></li>
+        <li><a href="#s3-pass">Passing &amp; Returning</a></li>
       </ul>
     </li>
-    <li><a href="#s3">std::shared_ptr</a>
+    <li><a href="#s4">std::shared_ptr</a>
       <ul class="sub">
-        <li><a href="#s3-cb">The Control Block</a></li>
-        <li><a href="#s3-make">make_shared vs. shared_ptr(new T)</a></li>
+        <li><a href="#s4-cb">The Control Block</a></li>
+        <li><a href="#s4-make">make_shared vs. shared_ptr(new T)</a></li>
+        <li><a href="#s4-alias">The Aliasing Constructor</a></li>
+        <li><a href="#s4-esft">enable_shared_from_this</a></li>
       </ul>
     </li>
-    <li><a href="#s4">std::weak_ptr</a>
+    <li><a href="#s5">std::weak_ptr</a>
       <ul class="sub">
-        <li><a href="#s4-cycles">Breaking Reference Cycles</a></li>
+        <li><a href="#s5-lock">Locking a weak_ptr</a></li>
+        <li><a href="#s5-cycles">Breaking Reference Cycles</a></li>
+        <li><a href="#s5-cache">Caches &amp; Observers</a></li>
       </ul>
     </li>
-    <li><a href="#s5">Pitfalls &amp; Gotchas</a></li>
-    <li><a href="#s6">Decision Cheat Sheet</a></li>
+    <li><a href="#s6">Cost &amp; Complexity Compared</a></li>
+    <li><a href="#s7">RAII: The General Principle</a></li>
+    <li><a href="#s8">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s9">Self-Test</a></li>
+    <li><a href="#s10">Decision Cheat Sheet</a></li>
   </ol>
 </nav>
 
@@ -286,87 +310,148 @@
     <div class="section-title">Why Smart Pointers Exist</div>
   </div>
 
-  <p>A raw pointer answers "where is this object" but says nothing about "who is responsible for destroying it." Every bug class below comes from that missing answer:</p>
+  <p>A raw pointer answers "where is this object" but says nothing about "who is responsible for destroying it," "how many other pointers refer to it," or "is it still alive." Every bug class below comes from one of those missing answers:</p>
 
   <div class="info-grid">
-    <div class="info-card"><h4>Leaks</h4><p>An exception or early <code>return</code> skips the matching <code>delete</code>.</p></div>
-    <div class="info-card"><h4>Double frees</h4><p>Two code paths both believe they own the pointer and both call <code>delete</code>.</p></div>
-    <div class="info-card"><h4>Dangling access</h4><p>Object is freed, pointer is not nulled, something later dereferences it.</p></div>
+    <div class="info-card"><h4>Leaks</h4><p>An exception or early <code>return</code> skips the matching <code>delete</code>. The allocation is never reclaimed.</p></div>
+    <div class="info-card"><h4>Double frees</h4><p>Two code paths both believe they own the pointer and both call <code>delete</code> on it — undefined behavior.</p></div>
+    <div class="info-card"><h4>Dangling access</h4><p>The object is freed, the pointer is not nulled, and something later dereferences the stale address.</p></div>
   </div>
 
-  <p>Smart pointers bind an object's lifetime to a stack-allocated wrapper's lifetime (RAII). When the wrapper goes out of scope — normally or via exception unwinding — its destructor runs, and cleanup happens automatically. The ownership question gets encoded directly in the type: <code>unique_ptr&lt;T&gt;</code> reads as "exactly one owner," <code>shared_ptr&lt;T&gt;</code> reads as "shared ownership, refcounted."</p>
+  <p>Smart pointers solve this by binding an object's lifetime to a stack-allocated wrapper's lifetime — the idiom is called <strong>RAII</strong> (Resource Acquisition Is Initialization, covered in full in §7). When the wrapper goes out of scope, whether by falling off the end of a block, an early <code>return</code>, or exception unwinding, its destructor runs automatically and cleanup happens without any explicit code at the call site.</p>
+
+  <p>The deeper idea is that <strong>ownership becomes part of the type</strong>, not a comment or a naming convention. A function signature taking <code>unique_ptr&lt;T&gt;</code> by value is documentation that it takes ownership; one taking <code>T&amp;</code> documents that it merely borrows. The compiler enforces what used to be an unenforced promise between programmers.</p>
 
   <div class="callout tip">
     <div class="ctitle">✓ Rule of Thumb</div>
-    If you're writing <code>new</code> or <code>delete</code> directly in application code (outside of a smart pointer's own implementation), stop and ask why a smart pointer or container isn't doing it for you.
+    If you're writing <code>new</code> or <code>delete</code> directly in application code (outside of a smart pointer's own implementation), stop and ask why a smart pointer or standard container isn't doing it for you. Modern C++ style treats a bare <code>new</code>/<code>delete</code> pair as a code smell, not a default tool.
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 2: UNIQUE_PTR                                      -->
+<!--  SECTION 2: OWNERSHIP MODELS                                -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s2">
   <div class="section-header">
     <div class="section-number">2</div>
-    <div class="section-title">std::unique_ptr</div>
+    <div class="section-title">Ownership Models at a Glance</div>
   </div>
 
-  <p><code>unique_ptr</code> models <strong>exclusive ownership</strong>. Exactly one <code>unique_ptr</code> instance owns the managed object at any time. It is move-only — copying is disabled at compile time — so ownership can be <em>transferred</em> but never <em>duplicated</em>.</p>
+  <p>Before the mechanics of any one type, it helps to see the whole family at once. Every pointer-like tool in C++ answers the same question — "who is responsible for this object's lifetime?" — differently:</p>
 
-  <div class="flabel">unique_ptr_basics.cpp</div>
-  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> conn = std::<span class="fn">make_unique</span>&lt;<span class="ty">Connection</span>&gt;(host, port);
-<span class="ln">2</span> conn-&gt;<span class="fn">send</span>(payload);              <span class="cm">// use like a raw pointer</span>
-<span class="ln">3</span>
-<span class="ln">4</span> <span class="kw">auto</span> owner2 = std::<span class="fn">move</span>(conn);      <span class="cm">// ownership transferred</span>
-<span class="ln">5</span> <span class="cm">// conn is now nullptr — using it is a bug, not UB by itself,</span>
-<span class="ln">6</span> <span class="cm">// but dereferencing a null unique_ptr IS undefined behavior</span>
-<span class="ln">7</span>
-<span class="ln">8</span> <span class="cm">// conn2 = conn;   // compile error: copy ctor is deleted</span></div>
-
-  <h3 id="s2-props">2.1 Key Properties</h3>
-  <ul>
-    <li>Zero overhead vs. a raw pointer in the common case — no atomic refcount, no control block. It's a thin RAII wrapper around a pointer plus (optionally) a deleter.</li>
-    <li>Always prefer <code>std::make_unique&lt;T&gt;(args...)</code> over <code>unique_ptr&lt;T&gt;(new T(args...))</code> — it avoids naming <code>new</code> directly and eliminates a leak edge case in function-argument evaluation order.</li>
-    <li>Supports custom deleters via a second template parameter, for wrapping C-style resources (file handles, sockets).</li>
-    <li>Arrays: <code>unique_ptr&lt;T[]&gt;</code> uses <code>delete[]</code> automatically and provides <code>operator[]</code>.</li>
-  </ul>
-
-  <h3 id="s2-deleter">2.2 Custom Deleter (a Socket, for Example)</h3>
-  <div class="flabel">socket_guard.cpp</div>
-  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> deleter = [](<span class="kw">int</span>* fd) { <span class="fn">close</span>(*fd); <span class="kw">delete</span> fd; };
-<span class="ln">2</span> std::unique_ptr&lt;<span class="kw">int</span>, <span class="kw">decltype</span>(deleter)&gt; sock(<span class="kw">new</span> <span class="kw">int</span>(fd), deleter);
-<span class="ln">3</span> <span class="cm">// close(fd) runs automatically when sock leaves scope,</span>
-<span class="ln">4</span> <span class="cm">// including when an exception unwinds the stack</span></div>
-  <p class="dim">This pattern — wrapping a POSIX file descriptor so <code>close()</code> is called automatically — is exactly what a <code>SocketGuard</code>-style RAII wrapper does for a Berkeley sockets file descriptor: it turns a manual <code>close(fd)</code> call into a destructor that runs unconditionally.</p>
-
-  <h3 id="s2-pass">2.3 Passing to Functions</h3>
   <table>
-    <tr><th>Signature</th><th>Meaning</th></tr>
-    <tr><td><code>void f(unique_ptr&lt;T&gt; p)</code></td><td>Function takes ownership; caller must <code>std::move</code> in.</td></tr>
-    <tr><td><code>void f(unique_ptr&lt;T&gt;&amp; p)</code></td><td>Function may reset/reassign the caller's pointer.</td></tr>
-    <tr><td><code>void f(T* p)</code> / <code>f(T&amp; t)</code></td><td>Function just <em>uses</em> the object, no ownership involved — call with <code>p.get()</code> or <code>*p</code>. This is the most common and idiomatic case.</td></tr>
+    <tr><th>Type</th><th>Ownership</th><th>Copyable?</th><th>Typical use</th></tr>
+    <tr><td><code>T*</code> (raw pointer)</td><td>None implied</td><td>Yes</td><td>Non-owning access; C APIs; iteration</td></tr>
+    <tr><td><code>T&amp;</code> (reference)</td><td>None implied, never null</td><td>N/A</td><td>Non-owning access when null isn't a valid state</td></tr>
+    <tr><td><code>unique_ptr&lt;T&gt;</code></td><td>Exactly one owner</td><td>No (move-only)</td><td>The default owning pointer</td></tr>
+    <tr><td><code>shared_ptr&lt;T&gt;</code></td><td>Shared, refcounted</td><td>Yes</td><td>Genuinely shared lifetime across multiple owners</td></tr>
+    <tr><td><code>weak_ptr&lt;T&gt;</code></td><td>None — observes a <code>shared_ptr</code> group</td><td>Yes</td><td>Breaking cycles; caches; "is it still alive?"</td></tr>
   </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    Ownership and access are different questions. A function can <em>access</em> an object without <em>owning</em> it — that's what raw pointers, references, <code>.get()</code>, and <code>weak_ptr::lock()</code> are all for. Reach for an owning smart pointer only at the point where lifetime is actually decided; everywhere else, pass around a non-owning view.
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 3: SHARED_PTR                                      -->
+<!--  SECTION 3: UNIQUE_PTR                                      -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s3">
   <div class="section-header">
     <div class="section-number">3</div>
+    <div class="section-title">std::unique_ptr</div>
+  </div>
+
+  <p><code>unique_ptr</code> models <strong>exclusive ownership</strong>. Exactly one <code>unique_ptr</code> instance owns the managed object at any time. It is move-only — the copy constructor and copy assignment operator are deleted at compile time — so ownership can be <em>transferred</em> but never <em>duplicated</em>.</p>
+
+  <div class="flabel">unique_ptr_basics.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> w = std::<span class="fn">make_unique</span>&lt;<span class="ty">Widget</span>&gt;(42);
+<span class="ln">2</span> w-&gt;<span class="fn">process</span>();                     <span class="cm">// use like a raw pointer</span>
+<span class="ln">3</span>
+<span class="ln">4</span> <span class="kw">auto</span> owner2 = std::<span class="fn">move</span>(w);        <span class="cm">// ownership transferred</span>
+<span class="ln">5</span> <span class="cm">// w is now nullptr — using it is a logic bug, not automatically UB,</span>
+<span class="ln">6</span> <span class="cm">// but dereferencing a null unique_ptr IS undefined behavior</span>
+<span class="ln">7</span>
+<span class="ln">8</span> <span class="cm">// owner3 = w;   // compile error: copy ctor is deleted</span></div>
+
+  <h3 id="s3-props">3.1 Key Properties</h3>
+  <ul>
+    <li>Zero overhead vs. a raw pointer in the common case — no atomic refcount, no control block. It's a thin RAII wrapper around a pointer plus (optionally) a deleter, and is typically exactly the size of the pointer it wraps.</li>
+    <li>Always prefer <code>std::make_unique&lt;T&gt;(args...)</code> over <code>unique_ptr&lt;T&gt;(new T(args...))</code> — it avoids naming <code>new</code> directly and eliminates a leak edge case in function-argument evaluation order (pre-C++17, if a sibling argument's constructor threw between the <code>new</code> and the <code>unique_ptr</code> construction, the raw allocation would leak).</li>
+    <li>Supports custom deleters via a second template parameter, for wrapping any resource that isn't freed with plain <code>delete</code>.</li>
+    <li><code>reset()</code> releases the current object (destroying it) and optionally takes ownership of a new one; <code>release()</code> gives up ownership <em>without</em> destroying, returning the raw pointer — the caller now owns it manually.</li>
+    <li>Implicitly convertible to <code>bool</code> for a null check: <code>if (w) { ... }</code>, mirroring raw-pointer style.</li>
+  </ul>
+
+  <h3 id="s3-deleter">3.2 Custom Deleters</h3>
+  <p>A <code>unique_ptr</code> isn't limited to memory freed by <code>delete</code>. Give it a deleter and it can manage <em>any</em> resource with an acquire/release pair — a file handle, a lock, a graphics handle, a database cursor. This is the same RAII idea generalized past <code>new</code>/<code>delete</code>.</p>
+
+  <div class="flabel">file_guard.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">struct</span> <span class="ty">FileCloser</span> {
+<span class="ln">2</span>     <span class="kw">void</span> <span class="kw">operator</span>()(FILE* f) <span class="kw">const</span> { <span class="kw">if</span> (f) <span class="fn">fclose</span>(f); }
+<span class="ln">3</span> };
+<span class="ln">4</span> std::unique_ptr&lt;FILE, FileCloser&gt; fp(<span class="fn">fopen</span>(<span class="st">"data.csv"</span>, <span class="st">"r"</span>));
+<span class="ln">5</span> <span class="cm">// fclose(fp.get()) runs automatically when fp leaves scope —</span>
+<span class="ln">6</span> <span class="cm">// including on every early return and every exception path</span></div>
+
+  <p class="dim">A lambda works just as well as a functor when the deleter doesn't need to be reused elsewhere:</p>
+
+  <div class="flabel">lambda_deleter.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> deleter = [](<span class="kw">int</span>* fd) { <span class="fn">close</span>(*fd); <span class="kw">delete</span> fd; };
+<span class="ln">2</span> std::unique_ptr&lt;<span class="kw">int</span>, <span class="kw">decltype</span>(deleter)&gt; sock(<span class="kw">new</span> <span class="kw">int</span>(fd), deleter);
+<span class="ln">3</span> <span class="cm">// the socket is closed automatically when sock goes out of scope</span></div>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    A custom deleter changes the <em>type</em> of the <code>unique_ptr</code> — <code>unique_ptr&lt;FILE, FileCloser&gt;</code> and <code>unique_ptr&lt;FILE&gt;</code> are unrelated types and can't be assigned to each other. <code>shared_ptr</code>, by contrast, type-erases its deleter, so any <code>shared_ptr&lt;T&gt;</code> can hold any deleter without changing the type — one reason its control block exists.
+  </div>
+
+  <h3 id="s3-arr">3.3 Arrays</h3>
+  <p><code>unique_ptr&lt;T[]&gt;</code> (note the brackets) is specialized for arrays: it calls <code>delete[]</code> instead of <code>delete</code>, and provides <code>operator[]</code> instead of <code>operator*</code>/<code>operator-&gt;</code>.</p>
+
+  <div class="flabel">unique_ptr_array.cpp</div>
+  <div class="code-block"><span class="ln">1</span> std::unique_ptr&lt;<span class="kw">int</span>[]&gt; buf = std::<span class="fn">make_unique</span>&lt;<span class="kw">int</span>[]&gt;(1024);
+<span class="ln">2</span> buf[0] = 7;                              <span class="cm">// operator[], not operator*</span>
+<span class="ln">3</span> <span class="cm">// delete[] buf.get() runs automatically on scope exit</span></div>
+
+  <p class="dim">In practice, <code>std::vector</code> is almost always the better choice for a dynamically-sized array — it also tracks size and supports growth. <code>unique_ptr&lt;T[]&gt;</code> is mainly for fixed-size buffers received from a C API or for avoiding <code>vector</code>'s default value-initialization overhead in performance-sensitive code.</p>
+
+  <h3 id="s3-pass">3.4 Passing &amp; Returning</h3>
+  <table>
+    <tr><th>Signature</th><th>Meaning</th></tr>
+    <tr><td><code>void f(unique_ptr&lt;T&gt; p)</code></td><td>Function takes ownership; caller must <code>std::move</code> in.</td></tr>
+    <tr><td><code>void f(unique_ptr&lt;T&gt;&amp; p)</code></td><td>Function may reset/reassign the caller's pointer, but doesn't take ownership.</td></tr>
+    <tr><td><code>void f(T* p)</code> / <code>f(T&amp; t)</code></td><td>Function just <em>uses</em> the object, no ownership involved — call with <code>p.get()</code> or <code>*p</code>. This is the most common and idiomatic case.</td></tr>
+    <tr><td><code>unique_ptr&lt;T&gt; make()</code></td><td>Factory pattern — return by value. Guaranteed move (or elided entirely) since C++17, so this is free.</td></tr>
+  </table>
+
+  <div class="flabel">factory_pattern.cpp</div>
+  <div class="code-block"><span class="ln">1</span> std::unique_ptr&lt;<span class="ty">Widget</span>&gt; <span class="fn">makeWidget</span>(<span class="kw">int</span> id) {
+<span class="ln">2</span>     <span class="kw">if</span> (id &lt; 0) <span class="kw">return</span> <span class="kw">nullptr</span>;
+<span class="ln">3</span>     <span class="kw">return</span> std::<span class="fn">make_unique</span>&lt;<span class="ty">Widget</span>&gt;(id);   <span class="cm">// moved out, no copy</span>
+<span class="ln">4</span> }</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 4: SHARED_PTR                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-number">4</div>
     <div class="section-title">std::shared_ptr</div>
   </div>
 
   <p><code>shared_ptr</code> models <strong>shared ownership</strong> via reference counting. Multiple <code>shared_ptr</code> instances can point at the same object; the object is destroyed when the last one is destroyed or reset.</p>
 
   <div class="flabel">shared_ptr_basics.cpp</div>
-  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> a = std::<span class="fn">make_shared</span>&lt;<span class="ty">Session</span>&gt;(id);   <span class="cm">// use_count == 1</span>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> a = std::<span class="fn">make_shared</span>&lt;<span class="ty">Widget</span>&gt;(id);   <span class="cm">// use_count == 1</span>
 <span class="ln">2</span> <span class="kw">auto</span> b = a;                                <span class="cm">// use_count == 2, copy is allowed</span>
 <span class="ln">3</span> { <span class="kw">auto</span> c = a; }                          <span class="cm">// use_count -&gt; 3 -&gt; back to 2 on scope exit</span>
 <span class="ln">4</span> std::cout &lt;&lt; a.<span class="fn">use_count</span>();               <span class="cm">// 2</span></div>
 
-  <h3 id="s3-cb">3.1 The Control Block</h3>
-  <p>Every <code>shared_ptr</code> group shares one heap-allocated <strong>control block</strong> holding: the strong reference count, the weak reference count, the deleter, and (for <code>make_shared</code>) the object itself.</p>
+  <h3 id="s4-cb">4.1 The Control Block</h3>
+  <p>Every <code>shared_ptr</code> group shares one heap-allocated <strong>control block</strong> holding: the strong reference count, the weak reference count, a type-erased deleter, and (for <code>make_shared</code>) the object itself.</p>
 
   <div class="diagram">
     <svg viewBox="0 0 860 220" xmlns="http://www.w3.org/2000/svg">
@@ -392,7 +477,7 @@
       <line x1="555" y1="105" x2="660" y2="105" stroke="#4ade80" stroke-width="1.2" marker-end="url(#arrow)"/>
 
       <rect x="665" y="65" width="170" height="80" fill="none" stroke="#4ade80" stroke-width="1.2" stroke-dasharray="3 3"/>
-      <text x="750" y="100" fill="#4ade80" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Session</text>
+      <text x="750" y="100" fill="#4ade80" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Widget</text>
       <text x="750" y="118" fill="#7680a0" font-family="JetBrains Mono" font-size="10.5" text-anchor="middle">managed object</text>
     </svg>
     <div class="cap">FIG 1 — two shared_ptr instances referencing one control block, which owns the object</div>
@@ -400,39 +485,73 @@
 
   <div class="callout trap">
     <div class="ctitle">⚠ Cost</div>
-    Unlike <code>unique_ptr</code>, <code>shared_ptr</code> is not free: the control block is heap-allocated (unless elided via <code>make_shared</code>), the refcount increment/decrement is atomic (thread-safe refcounting), and the pointer itself is twice the size of a raw pointer (object pointer + control block pointer). Don't reach for <code>shared_ptr</code> as a default — use it only when ownership genuinely needs to be shared.
+    Unlike <code>unique_ptr</code>, <code>shared_ptr</code> is not free: the control block is heap-allocated (unless elided via <code>make_shared</code>), the refcount increment/decrement is atomic (thread-safe refcounting even in a single-threaded program), and the pointer itself is typically twice the size of a raw pointer (object pointer + control block pointer). Don't reach for <code>shared_ptr</code> as a default — use it only when ownership genuinely needs to be shared.
   </div>
 
-  <h3 id="s3-make">3.2 make_shared vs. shared_ptr(new T)</h3>
+  <h3 id="s4-make">4.2 make_shared vs. shared_ptr(new T)</h3>
   <table>
     <tr><th>make_shared&lt;T&gt;(args...)</th><th>shared_ptr&lt;T&gt;(new T(args...))</th></tr>
     <tr><td>One allocation (object + control block combined)</td><td>Two allocations — separate heap blocks</td></tr>
     <tr><td>Better cache locality</td><td>Object and control block can be far apart in memory</td></tr>
     <tr><td>Exception-safe by construction</td><td>Can leak if used as a raw arg in a function call with unspecified evaluation order (pre-C++17)</td></tr>
-    <tr><td>Object memory not freed until every weak_ptr is gone too</td><td>Object destroyed as soon as strong count hits zero</td></tr>
+    <tr><td>Object memory not freed until every weak_ptr is gone too</td><td>Object destroyed as soon as strong count hits zero; control block lingers separately for weak_ptrs</td></tr>
+    <tr><td>Can't use a custom deleter</td><td>Required when you need a custom deleter</td></tr>
   </table>
+
+  <h3 id="s4-alias">4.3 The Aliasing Constructor</h3>
+  <p>A lesser-known but genuinely useful <code>shared_ptr</code> constructor lets you point at a <em>sub-object</em> while sharing ownership of a <em>different</em> object's control block. The resulting <code>shared_ptr</code> dereferences to the sub-object, but keeps the whole owner alive.</p>
+
+  <div class="flabel">aliasing_ctor.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">struct</span> <span class="ty">Matrix</span> { std::vector&lt;<span class="kw">double</span>&gt; data; };
+<span class="ln">2</span>
+<span class="ln">3</span> std::shared_ptr&lt;<span class="ty">Matrix</span>&gt; m = std::<span class="fn">make_shared</span>&lt;<span class="ty">Matrix</span>&gt;();
+<span class="ln">4</span> std::shared_ptr&lt;<span class="kw">double</span>&gt; firstElem(m, &amp;m-&gt;data[0]);
+<span class="ln">5</span> <span class="cm">// firstElem.use_count() == 2 — points at a double INSIDE m,</span>
+<span class="ln">6</span> <span class="cm">// but keeps the whole Matrix alive via m's control block</span></div>
+
+  <h3 id="s4-esft">4.4 enable_shared_from_this</h3>
+  <p>A member function sometimes needs to hand out a <code>shared_ptr</code> to its own object — for example, registering <code>this</code> as a callback target. Constructing <code>shared_ptr&lt;T&gt;(this)</code> directly is a trap: it creates a brand-new, disconnected control block, so the object ends up owned by two unrelated refcounts and gets destroyed twice. Deriving from <code>std::enable_shared_from_this&lt;T&gt;</code> fixes this by giving the object a way to obtain a <code>shared_ptr</code> that shares the <em>existing</em> control block.</p>
+
+  <div class="flabel">enable_shared_from_this.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">class</span> <span class="ty">Worker</span> : <span class="kw">public</span> std::enable_shared_from_this&lt;<span class="ty">Worker</span>&gt; {
+<span class="ln">2</span> <span class="kw">public</span>:
+<span class="ln">3</span>     <span class="kw">void</span> <span class="fn">registerCallback</span>() {
+<span class="ln">4</span>         scheduler.<span class="fn">onDone</span>(<span class="fn">shared_from_this</span>());   <span class="cm">// safe: reuses the real control block</span>
+<span class="ln">5</span>         <span class="cm">// scheduler.onDone(shared_ptr&lt;Worker&gt;(this));  // BUG: second control block</span>
+<span class="ln">6</span>     }
+<span class="ln">7</span> };
+<span class="ln">8</span> <span class="kw">auto</span> w = std::<span class="fn">make_shared</span>&lt;<span class="ty">Worker</span>&gt;();
+<span class="ln">9</span> w-&gt;<span class="fn">registerCallback</span>();</div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Precondition</div>
+    <code>shared_from_this()</code> only works once the object is already owned by at least one <code>shared_ptr</code>. Calling it from a constructor (before any <code>shared_ptr</code> exists yet) throws <code>std::bad_weak_ptr</code>.
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 4: WEAK_PTR                                        -->
+<!--  SECTION 5: WEAK_PTR                                        -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s4">
+<div class="section" id="s5">
   <div class="section-header">
-    <div class="section-number">4</div>
+    <div class="section-number">5</div>
     <div class="section-title">std::weak_ptr</div>
   </div>
 
-  <p><code>weak_ptr</code> observes an object managed by <code>shared_ptr</code> <strong>without</strong> contributing to the strong reference count. It cannot be dereferenced directly — you must first <code>lock()</code> it into a temporary <code>shared_ptr</code>, which is <code>nullptr</code> if the object has already been destroyed.</p>
+  <p><code>weak_ptr</code> observes an object managed by <code>shared_ptr</code> <strong>without</strong> contributing to the strong reference count and without keeping it alive. It cannot be dereferenced directly.</p>
+
+  <h3 id="s5-lock">5.1 Locking a weak_ptr</h3>
+  <p>To safely access the object, first <code>lock()</code> it into a temporary <code>shared_ptr</code>, which is <code>nullptr</code> if the object has already been destroyed.</p>
 
   <div class="flabel">weak_ptr_lock.cpp</div>
-  <div class="code-block"><span class="ln">1</span> std::weak_ptr&lt;<span class="ty">Session</span>&gt; observer = session;
+  <div class="code-block"><span class="ln">1</span> std::weak_ptr&lt;<span class="ty">Widget</span>&gt; observer = w;
 <span class="ln">2</span> <span class="kw">if</span> (<span class="kw">auto</span> locked = observer.<span class="fn">lock</span>()) {   <span class="cm">// promotes to shared_ptr, or null</span>
-<span class="ln">3</span>     locked-&gt;<span class="fn">touch</span>();                 <span class="cm">// safe: locked keeps it alive here</span>
+<span class="ln">3</span>     locked-&gt;<span class="fn">process</span>();                <span class="cm">// safe: locked keeps it alive here</span>
 <span class="ln">4</span> } <span class="kw">else</span> {
 <span class="ln">5</span>     <span class="cm">// the object is already gone — handle gracefully</span>
 <span class="ln">6</span> }</div>
 
-  <h3 id="s4-cycles">4.1 The Classic Use Case: Breaking Cycles</h3>
+  <h3 id="s5-cycles">5.2 Breaking Reference Cycles</h3>
   <p>Two objects holding <code>shared_ptr</code> to each other create a reference cycle — neither strong count ever reaches zero, so neither is destroyed, even when nothing external refers to them. This is a real, common leak pattern (parent/child trees, observer graphs, doubly-linked structures). The fix is to make one direction of the relationship a <code>weak_ptr</code>, typically the "back" pointer (child → parent).</p>
 
   <div class="diagram">
@@ -459,32 +578,181 @@
     </svg>
     <div class="cap">FIG 2 — parent owns child by shared_ptr; child refers back with weak_ptr, so the cycle can't keep both alive</div>
   </div>
+
+  <h3 id="s5-cache">5.3 Caches &amp; Observers</h3>
+  <p>Cycles aren't the only use case. Anywhere you want to <em>refer</em> to something without forcing it to stay alive on your account, <code>weak_ptr</code> fits — for example, a cache that should let entries be evicted the moment nothing else needs them:</p>
+
+  <div class="flabel">weak_ptr_cache.cpp</div>
+  <div class="code-block"><span class="ln">1</span> std::unordered_map&lt;<span class="kw">int</span>, std::weak_ptr&lt;<span class="ty">Widget</span>&gt;&gt; cache;
+<span class="ln">2</span>
+<span class="ln">3</span> std::shared_ptr&lt;<span class="ty">Widget</span>&gt; <span class="fn">fetch</span>(<span class="kw">int</span> id) {
+<span class="ln">4</span>     <span class="kw">if</span> (<span class="kw">auto</span> hit = cache[id].<span class="fn">lock</span>()) <span class="kw">return</span> hit;   <span class="cm">// still alive elsewhere</span>
+<span class="ln">5</span>     <span class="kw">auto</span> fresh = std::<span class="fn">make_shared</span>&lt;<span class="ty">Widget</span>&gt;(id);
+<span class="ln">6</span>     cache[id] = fresh;                        <span class="cm">// observes only — doesn't pin it in memory</span>
+<span class="ln">7</span>     <span class="kw">return</span> fresh;
+<span class="ln">8</span> }</div>
+  <p class="dim">If the cache instead stored <code>shared_ptr&lt;Widget&gt;</code>, every entry would live forever — the cache itself would be an unbounded owner. Storing <code>weak_ptr</code> lets entries disappear naturally once their last real owner releases them.</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Race Condition</div>
+    <code>weak_ptr::lock()</code> is the only safe way to access the underlying object. Testing <code>expired()</code> and then locking separately has a race window in multithreaded code — another thread can destroy the object between the two calls. Always use the result of <code>lock()</code> directly.
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 5: PITFALLS                                        -->
+<!--  SECTION 6: COST & COMPLEXITY                               -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s5">
+<div class="section" id="s6">
   <div class="section-header">
-    <div class="section-number">5</div>
+    <div class="section-number">6</div>
+    <div class="section-title">Cost &amp; Complexity Compared</div>
+  </div>
+  <p>A quick reference for the overhead each type actually carries — useful for reasoning about performance-sensitive code and for interview questions on smart pointer cost.</p>
+
+  <div class="cx-grid">
+    <div class="cx-cell">
+      <span class="cx-name">raw T*</span>
+      <span class="cx-big">1×ptr</span>
+      <span class="cx-label">no overhead, no safety</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">unique_ptr</span>
+      <span class="cx-big">1×ptr</span>
+      <span class="cx-label">same size, RAII, no atomics</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">shared_ptr</span>
+      <span class="cx-big">2×ptr</span>
+      <span class="cx-label">+ control block, atomic refcount</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">weak_ptr</span>
+      <span class="cx-big">2×ptr</span>
+      <span class="cx-label">no object ownership, keeps block alive</span>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Operation</th><th>unique_ptr</th><th>shared_ptr</th></tr>
+    <tr><td>Construction (from raw pointer)</td><td>O(1), no allocation</td><td>O(1), one allocation (unless make_shared shares it with the object)</td></tr>
+    <tr><td>Copy</td><td>Not allowed</td><td>O(1), atomic increment</td></tr>
+    <tr><td>Move</td><td>O(1), pointer swap</td><td>O(1), pointer swap, no atomic op</td></tr>
+    <tr><td>Destruction</td><td>O(1) + object destructor</td><td>O(1) atomic decrement; object destructor only if count hits 0</td></tr>
+    <tr><td>Dereference</td><td>O(1), same as raw pointer</td><td>O(1), same as raw pointer</td></tr>
+  </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    The atomic refcount in <code>shared_ptr</code> exists so that copies can safely cross threads — it is not optional and cannot be turned off, even in a single-threaded program. This is the single most common reason interviewers ask "why not just use <code>shared_ptr</code> everywhere?": the answer is the always-on atomic cost plus the extra allocation, not just "it's shared."
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 7: RAII                                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-number">7</div>
+    <div class="section-title">RAII: The General Principle</div>
+  </div>
+
+  <p>Smart pointers are the most common example of RAII, but RAII itself is a general C++ idiom, not a pointer-only trick: <strong>tie any resource's lifetime to a stack object's constructor and destructor.</strong> "Resource" can mean heap memory, but just as often means a mutex lock, an open file, a network connection, a database transaction, or a timing measurement.</p>
+
+  <div class="info-grid">
+    <div class="info-card"><h4>std::lock_guard</h4><p>Acquires a mutex in its constructor, releases it in its destructor — a lock that can never be forgotten, even across an exception.</p></div>
+    <div class="info-card"><h4>std::fstream</h4><p>Opens a file on construction, closes it on destruction. No matching <code>close()</code> call needed on any exit path.</p></div>
+    <div class="info-card"><h4>std::vector</h4><p>Owns its heap buffer the same way <code>unique_ptr</code> owns a single object — allocates in its constructor, frees in its destructor.</p></div>
+  </div>
+
+  <div class="flabel">raii_generalized.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">void</span> <span class="fn">updateShared</span>(<span class="ty">SharedState</span>&amp; state) {
+<span class="ln">2</span>     std::lock_guard&lt;std::mutex&gt; guard(state.mutex);   <span class="cm">// acquired here</span>
+<span class="ln">3</span>     state.<span class="fn">mutate</span>();                             <span class="cm">// if this throws...</span>
+<span class="ln">4</span> }                                                  <span class="cm">// ...guard's destructor still unlocks here</span></div>
+
+  <p>The pattern generalizes to a single rule: <strong>never manage a resource with a raw handle and a manual release call if a stack-lifetime wrapper can do it instead.</strong> Every smart pointer in this document is one instance of that rule applied to heap-allocated objects.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 8: PITFALLS                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-number">8</div>
     <div class="section-title">Pitfalls &amp; Gotchas</div>
   </div>
   <ul>
     <li><strong>Never</strong> construct two independent <code>shared_ptr</code> from the same raw pointer — <code>shared_ptr&lt;T&gt;(raw)</code> called twice creates two unrelated control blocks, so the object gets destroyed twice.</li>
     <li>Calling <code>.get()</code> to obtain a raw pointer is fine for temporary use, but never store that raw pointer somewhere that outlives the smart pointer's ownership.</li>
-    <li><code>enable_shared_from_this</code> is required if a member function needs to hand out a <code>shared_ptr</code> to <code>*this</code> — constructing one directly from <code>this</code> creates a second, disconnected control block.</li>
-    <li>Passing <code>shared_ptr</code> by value into every function "for safety" is a common overcorrection — it forces an atomic refcount bump on every call. Pass by <code>const&amp;</code> if the callee doesn't need to extend ownership.</li>
+    <li><code>enable_shared_from_this</code> is required if a member function needs to hand out a <code>shared_ptr</code> to <code>*this</code> — constructing one directly from <code>this</code> creates a second, disconnected control block (see §4.4).</li>
+    <li>Passing <code>shared_ptr</code> by value into every function "for safety" is a common overcorrection — it forces an atomic refcount bump on every call. Pass by <code>const&amp;</code> if the callee doesn't need to extend ownership, or better, pass a raw pointer/reference if it doesn't need ownership involvement at all.</li>
     <li><code>unique_ptr</code> in a moved-from state holds <code>nullptr</code> — reassign or check before use; dereferencing it is undefined behavior, same as any null pointer.</li>
-    <li><code>weak_ptr::lock()</code> is the only safe way to access the underlying object; testing <code>expired()</code> then locking separately has a race window in multithreaded code (use the result of <code>lock()</code> directly).</li>
+    <li><code>weak_ptr::lock()</code> is the only safe way to access the underlying object; testing <code>expired()</code> then locking separately has a race window in multithreaded code (see §5.3).</li>
+    <li>Mixing <code>shared_ptr&lt;T&gt;</code> for an array type is a historical trap — pre-C++17 it called plain <code>delete</code> instead of <code>delete[]</code> on a raw <code>new T[n]</code>, corrupting the heap. Since C++17, <code>shared_ptr&lt;T[]&gt;</code> is supported properly and calls <code>delete[]</code> — but <code>std::vector</code> is still usually the better choice.</li>
+    <li>A <code>shared_ptr</code> cycle is a silent leak, not a crash — nothing signals it at runtime. If objects with mutual references seem to never get destroyed, suspect a missing <code>weak_ptr</code> before anything else.</li>
+    <li>Returning a smart pointer from a getter forces a choice: return <code>const T&amp;</code> or a raw pointer if the caller shouldn't extend ownership; only return <code>shared_ptr&lt;T&gt;</code> if the caller genuinely needs to keep the object alive independently.</li>
   </ul>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 6: CHEAT SHEET                                     -->
+<!--  SECTION 9: SELF-TEST                                       -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s6">
+<div class="section" id="s9">
   <div class="section-header">
-    <div class="section-number">6</div>
+    <div class="section-number">9</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try answering in your head first — these are pitched at the level a technical interview would ask.</p>
+
+  <details class="qa">
+    <summary>Why is unique_ptr move-only, and what does that buy you over shared_ptr?</summary>
+    <div class="qa-a">
+      <p>Copying would imply two owners of the same object, which contradicts "exactly one owner." Disabling the copy constructor makes that contradiction a compile error instead of a runtime bug. In exchange, <code>unique_ptr</code> needs no refcount, no atomics, and no control block — it costs nothing more than the raw pointer it wraps.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What exactly lives in a shared_ptr's control block, and who allocates it?</summary>
+    <div class="qa-a">
+      <p>The strong reference count, the weak reference count, a type-erased deleter, and (only when created via <code>make_shared</code>) the managed object itself, colocated in one allocation. When created via <code>shared_ptr&lt;T&gt;(new T)</code>, the control block is a separate allocation from the object.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Two nodes hold shared_ptrs to each other. Neither is referenced from outside. Do they get destroyed?</summary>
+    <div class="qa-a">
+      <p>No. Each keeps the other's strong count at 1, so neither ever reaches 0 — a silent leak. Fixing it means making one direction of the relationship a <code>weak_ptr</code>, typically the back-reference.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why can't you safely check weak_ptr::expired() and then dereference separately in multithreaded code?</summary>
+    <div class="qa-a">
+      <p>Another thread can destroy the object in the gap between the two calls. <code>lock()</code> is atomic with respect to the refcount — it either returns a valid <code>shared_ptr</code> that keeps the object alive for as long as you hold it, or a null one. Always branch on the result of <code>lock()</code> itself.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why does make_shared beat shared_ptr(new T) in the common case, and when would you avoid it anyway?</summary>
+    <div class="qa-a">
+      <p><code>make_shared</code> does one allocation instead of two, improving cache locality and reducing allocator overhead. Avoid it when you need a custom deleter (not supported), or when the object is large and you're holding a long-lived <code>weak_ptr</code> to it — because the combined allocation means the object's memory isn't freed until every <code>weak_ptr</code> is gone too, not just every <code>shared_ptr</code>.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What goes wrong if a member function does `return std::shared_ptr&lt;T&gt;(this);`?</summary>
+    <div class="qa-a">
+      <p>It creates a second control block with its own independent strong count of 1, unrelated to whatever control block (if any) already owns the object. When both control blocks eventually hit zero, the object is destroyed twice — undefined behavior. Deriving from <code>enable_shared_from_this&lt;T&gt;</code> and calling <code>shared_from_this()</code> reuses the real control block instead.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: CHEAT SHEET                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
     <div class="section-title">Decision Cheat Sheet</div>
   </div>
   <div class="info-grid two">
@@ -504,12 +772,20 @@
       <h4>Breaking a cycle</h4>
       <p>One direction of a bidirectional owning relationship becomes <code>weak_ptr</code>.</p>
     </div>
+    <div class="info-card">
+      <h4>A member handing out shared_ptr(this)</h4>
+      <p>Derive from <code>enable_shared_from_this&lt;T&gt;</code> and call <code>shared_from_this()</code> — never construct a <code>shared_ptr</code> from <code>this</code> directly.</p>
+    </div>
+    <div class="info-card">
+      <h4>A non-owning cache entry</h4>
+      <p>Store <code>weak_ptr</code>, not <code>shared_ptr</code> — the cache should observe, not keep entries alive forever.</p>
+    </div>
   </div>
 </div>
 
 <footer>
   C++ Smart Pointers · Memory Management Companion Notes<br>
-  Covers: unique_ptr · shared_ptr &amp; the Control Block · weak_ptr &amp; Breaking Cycles · RAII · Custom Deleters
+  Covers: unique_ptr · shared_ptr &amp; the Control Block · weak_ptr &amp; Breaking Cycles · RAII · Custom Deleters · Cost Comparison · Self-Test
 </footer>
 
 </body>

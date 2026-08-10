@@ -230,6 +230,21 @@
   ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
   ol li { margin: 0.3rem 0; }
 
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
   footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
 
   @media (max-width: 640px) {
@@ -246,57 +261,98 @@
 <div class="masthead">
   <div class="series-label">Value Categories · C++ Companion</div>
   <h1>Move Semantics</h1>
-  <div class="subtitle">Transferring ownership of a resource instead of copying it — rvalue references, std::move, and the rule of five</div>
+  <div class="subtitle">Transferring ownership of a resource instead of copying it — value categories, std::move, the rule of five, and perfect forwarding</div>
 </div>
 
 <!-- ═══════════ TOC ═══════════ -->
 <nav class="toc">
   <h2>Contents</h2>
   <ol>
-    <li><a href="#s1">Lvalues, Rvalues, and Why It Matters</a></li>
+    <li><a href="#s1">Value Categories: The Full Picture</a></li>
     <li><a href="#s2">std::move</a></li>
     <li><a href="#s3">Move Constructor &amp; Move Assignment</a>
       <ul class="sub">
         <li><a href="#s3-diagram">Resource Handoff, Visually</a></li>
         <li><a href="#s3-noexcept">Why noexcept Matters Here</a></li>
+        <li><a href="#s3-exchange">A Cleaner Version with std::exchange</a></li>
       </ul>
     </li>
-    <li><a href="#s4">The Rule of Five (and the Rule of Zero)</a></li>
-    <li><a href="#s5">Copy Elision &amp; RVO</a></li>
-    <li><a href="#s6">Perfect Forwarding &amp; std::forward</a></li>
-    <li><a href="#s7">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s4">The Copy-and-Swap Idiom</a></li>
+    <li><a href="#s5">The Rule of Five (and the Rule of Zero)</a></li>
+    <li><a href="#s6">Copy Elision &amp; RVO</a></li>
+    <li><a href="#s7">Perfect Forwarding &amp; std::forward</a></li>
+    <li><a href="#s8">Cost Compared: Move vs. Copy</a></li>
+    <li><a href="#s9">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s10">Self-Test</a></li>
+    <li><a href="#s11">Decision Cheat Sheet</a></li>
   </ol>
 </nav>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 1: LVALUES / RVALUES                               -->
+<!--  SECTION 1: VALUE CATEGORIES                                 -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s1">
   <div class="section-header">
     <div class="section-number">1</div>
-    <div class="section-title">Lvalues, Rvalues, and Why It Matters</div>
+    <div class="section-title">Value Categories: The Full Picture</div>
   </div>
 
-  <p>Every C++ expression has a <strong>value category</strong>. The distinction that matters for move semantics is:</p>
+  <p>Every C++ expression has a <strong>value category</strong>. Most day-to-day reasoning only needs the lvalue/rvalue split, but the standard actually defines five categories arranged in a small tree, and interview questions on move semantics often probe the categories the simplified version glosses over.</p>
 
-  <div class="info-grid two">
-    <div class="info-card">
-      <h4>lvalue</h4>
-      <p>Has a name, persists beyond the expression, you can take its address. A variable is an lvalue. Copying from it is the only safe option — someone else might still need it.</p>
-    </div>
-    <div class="info-card">
-      <h4>rvalue</h4>
-      <p>A temporary with no name — the result of a function returning by value, or a literal. It's about to be destroyed anyway, so <em>stealing</em> its internals instead of copying them is safe.</p>
-    </div>
+  <div class="diagram">
+    <svg viewBox="0 0 780 200" xmlns="http://www.w3.org/2000/svg">
+      <rect x="330" y="16" width="120" height="42" fill="none" stroke="#c9a84c" stroke-width="1.2"/>
+      <text x="390" y="42" fill="#e8c97a" font-family="JetBrains Mono" font-size="13" text-anchor="middle">expression</text>
+
+      <line x1="390" y1="58" x2="180" y2="95" stroke="#5b8af0" stroke-width="1.2"/>
+      <line x1="390" y1="58" x2="600" y2="95" stroke="#f472b6" stroke-width="1.2"/>
+
+      <rect x="90" y="95" width="180" height="42" fill="none" stroke="#5b8af0" stroke-width="1.2"/>
+      <text x="180" y="121" fill="#93b4f7" font-family="JetBrains Mono" font-size="12" text-anchor="middle">glvalue (has identity)</text>
+
+      <rect x="510" y="95" width="180" height="42" fill="none" stroke="#f472b6" stroke-width="1.2"/>
+      <text x="600" y="121" fill="#f9a8d4" font-family="JetBrains Mono" font-size="12" text-anchor="middle">rvalue (movable-from)</text>
+
+      <line x1="180" y1="137" x2="180" y2="155" stroke="#5b8af0" stroke-width="1.2"/>
+      <line x1="600" y1="137" x2="600" y2="155" stroke="#f472b6" stroke-width="1.2"/>
+      <line x1="390" y1="137" x2="390" y2="155" stroke="#4ade80" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <line x1="180" y1="137" x2="390" y2="155" stroke="#5b8af0" stroke-width="1.2"/>
+      <line x1="600" y1="137" x2="390" y2="155" stroke="#f472b6" stroke-width="1.2"/>
+
+      <rect x="10" y="155" width="120" height="40" fill="#151a2a" stroke="#5b8af0" stroke-width="1.2"/>
+      <text x="70" y="180" fill="#dde2f0" font-family="JetBrains Mono" font-size="12" text-anchor="middle">lvalue</text>
+
+      <rect x="330" y="155" width="120" height="40" fill="#151a2a" stroke="#4ade80" stroke-width="1.2"/>
+      <text x="390" y="180" fill="#4ade80" font-family="JetBrains Mono" font-size="12" text-anchor="middle">xvalue</text>
+
+      <rect x="650" y="155" width="120" height="40" fill="#151a2a" stroke="#f472b6" stroke-width="1.2"/>
+      <text x="710" y="180" fill="#f9a8d4" font-family="JetBrains Mono" font-size="12" text-anchor="middle">prvalue</text>
+    </svg>
+    <div class="cap">FIG 1 — glvalue and rvalue are the two axes; xvalue is where they overlap</div>
+  </div>
+
+  <table>
+    <tr><th>Category</th><th>Meaning</th><th>Example</th></tr>
+    <tr><td><strong>lvalue</strong></td><td>Has identity (an address you could take), not eligible to be moved from</td><td><code>x</code>, <code>*ptr</code>, a function returning <code>T&amp;</code></td></tr>
+    <tr><td><strong>prvalue</strong></td><td>"Pure rvalue" — no identity, a value being computed, initializes something directly</td><td><code>42</code>, <code>x + 1</code>, a function returning <code>T</code> by value</td></tr>
+    <tr><td><strong>xvalue</strong></td><td>"Expiring value" — has identity <em>and</em> is movable-from</td><td><code>std::move(x)</code>, a function returning <code>T&amp;&amp;</code></td></tr>
+    <tr><td><em>glvalue</em></td><td>Umbrella term: lvalue or xvalue — anything with identity</td><td>—</td></tr>
+    <tr><td><em>rvalue</em></td><td>Umbrella term: prvalue or xvalue — anything eligible to be moved from</td><td>—</td></tr>
+  </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Why xvalue Is the Interesting Case</div>
+    <code>std::move(x)</code> doesn't create a temporary — it produces an <strong>xvalue</strong>: an expression that still refers to <code>x</code>'s actual storage (it has identity, you could take its address) but is now <em>treated</em> as safe to move from. That's the entire trick behind <code>std::move</code>: it doesn't change what the object is, only which overload gets picked.
   </div>
 
   <div class="flabel">value_categories.cpp</div>
   <div class="code-block"><span class="ln">1</span> std::string a = <span class="st">"hello"</span>;   <span class="cm">// a: lvalue</span>
 <span class="ln">2</span> std::string b = a;               <span class="cm">// copy — a still needed after this line</span>
-<span class="ln">3</span> std::string c = a + <span class="st">" world"</span>; <span class="cm">// (a + " world"): rvalue, a fresh temporary</span>
-<span class="ln">4</span>                                   <span class="cm">// c can steal its buffer instead of copying</span></div>
+<span class="ln">3</span> std::string c = a + <span class="st">" world"</span>; <span class="cm">// (a + " world"): prvalue, a fresh temporary</span>
+<span class="ln">4</span>                                   <span class="cm">// c can steal its buffer instead of copying</span>
+<span class="ln">5</span> std::string d = std::<span class="fn">move</span>(a);   <span class="cm">// std::move(a): xvalue — same storage as a, but movable-from</span></div>
 
-  <p>Rvalue references, written <code>T&amp;&amp;</code>, are a reference type that can only bind to rvalues. Overload resolution uses this to route temporaries into a cheaper "move" code path and named variables into the "copy" code path automatically.</p>
+  <p>Rvalue references, written <code>T&amp;&amp;</code>, are a reference type that can only bind to rvalues (prvalues or xvalues). Overload resolution uses this to route temporaries and <code>std::move</code>'d expressions into a cheaper "move" code path, and named variables into the "copy" code path, automatically.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -393,19 +449,70 @@
       <text x="720" y="120" fill="#4ade80" font-family="JetBrains Mono" font-size="12">same heap buffer</text>
       <text x="720" y="136" fill="#7680a0" font-family="JetBrains Mono" font-size="10.5">(no copy — pointer reassigned)</text>
     </svg>
-    <div class="cap">FIG 1 — the move constructor reassigns the pointer instead of copying the bytes it points to</div>
+    <div class="cap">FIG 2 — the move constructor reassigns the pointer instead of copying the bytes it points to</div>
   </div>
 
   <h3 id="s3-noexcept">3.2 Why noexcept Matters Here Specifically</h3>
   <p>Standard containers like <code>std::vector</code> only use the move constructor during reallocation if it's marked <code>noexcept</code>. If it isn't, they silently fall back to copying — because if a move constructor throws partway through, the container can't safely roll back a "half moved" state. Mark move operations <code>noexcept</code> whenever they genuinely can't throw (which is almost always, since moving just reassigns pointers).</p>
+
+  <h3 id="s3-exchange">3.3 A Cleaner Version with std::exchange</h3>
+  <p>Manually setting each stolen member to a null/zero state, as in <code>Buffer</code> above, is easy to get wrong when a class has several members — it's easy to forget one. <code>std::exchange(obj, new_value)</code> returns the old value of <code>obj</code> while atomically (in the code-clarity sense, not thread sense) setting it to <code>new_value</code>, which reads as a single clear statement instead of two:</p>
+
+  <div class="flabel">exchange_form.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="fn">Buffer</span>(<span class="ty">Buffer</span>&amp;&amp; other) <span class="kw">noexcept</span>
+<span class="ln">2</span>     : data_(std::<span class="fn">exchange</span>(other.data_, <span class="kw">nullptr</span>)),
+<span class="ln">3</span>       size_(std::<span class="fn">exchange</span>(other.size_, 0)) {}
+<span class="ln">4</span> <span class="cm">// reads as: "take other's value, and simultaneously reset it"</span></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 4: RULE OF FIVE                                    -->
+<!--  SECTION 4: COPY-AND-SWAP                                   -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s4">
   <div class="section-header">
     <div class="section-number">4</div>
+    <div class="section-title">The Copy-and-Swap Idiom</div>
+  </div>
+
+  <p>Hand-written assignment operators are a common source of exception-safety bugs — if the copy of the new data throws partway through, an operator that has already torn down its own old state is left corrupted. <strong>Copy-and-swap</strong> sidesteps this: build the replacement entirely in a temporary first (where a thrown exception leaves the original object untouched), then swap, which can't throw.</p>
+
+  <div class="flabel">copy_and_swap.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">class</span> <span class="ty">Buffer</span> {
+<span class="ln">2</span> <span class="kw">public</span>:
+<span class="ln">3</span>     <span class="fn">Buffer</span>(<span class="kw">const</span> <span class="ty">Buffer</span>&amp; other)           <span class="cm">// copy ctor: deep-copies</span>
+<span class="ln">4</span>         : data_(<span class="kw">new</span> <span class="kw">char</span>[other.size_]), size_(other.size_) {
+<span class="ln">5</span>         std::<span class="fn">copy</span>(other.data_, other.data_ + size_, data_);
+<span class="ln">6</span>     }
+<span class="ln">7</span>     <span class="fn">Buffer</span>(<span class="ty">Buffer</span>&amp;&amp; other) <span class="kw">noexcept</span> { <span class="fn">swap</span>(*<span class="kw">this</span>, other); }
+<span class="ln">8</span>
+<span class="ln">9</span>     <span class="cm">// ONE operator= handles both copy-assign and move-assign</span>
+<span class="ln">10</span>    <span class="ty">Buffer</span>&amp; <span class="kw">operator</span>=(<span class="ty">Buffer</span> other) <span class="kw">noexcept</span> {  <span class="cm">// note: by value!</span>
+<span class="ln">11</span>        <span class="fn">swap</span>(*<span class="kw">this</span>, other);          <span class="cm">// swap our state with the (temp) copy</span>
+<span class="ln">12</span>        <span class="kw">return</span> *<span class="kw">this</span>;               <span class="cm">// other's destructor cleans up our old state</span>
+<span class="ln">13</span>    }
+<span class="ln">14</span>
+<span class="ln">15</span>    <span class="kw">friend</span> <span class="kw">void</span> <span class="fn">swap</span>(<span class="ty">Buffer</span>&amp; a, <span class="ty">Buffer</span>&amp; b) <span class="kw">noexcept</span> {
+<span class="ln">16</span>        std::<span class="fn">swap</span>(a.data_, b.data_);
+<span class="ln">17</span>        std::<span class="fn">swap</span>(a.size_, b.size_);
+<span class="ln">18</span>    }
+<span class="ln">19</span> <span class="kw">private</span>:
+<span class="ln">20</span>    <span class="kw">char</span>* data_ = <span class="kw">nullptr</span>; <span class="kw">size_t</span> size_ = 0;
+<span class="ln">21</span> };</div>
+
+  <p>Taking the parameter <strong>by value</strong> is the trick that unifies copy- and move-assignment into one function: if the caller passes an lvalue, the parameter is copy-constructed (deep copy happens there, outside the operator); if the caller passes an rvalue or <code>std::move(x)</code>, the parameter is move-constructed (cheap). Either way, <code>operator=</code> itself just swaps — the same few lines handle both cases correctly and cannot leak or self-destruct on self-assignment.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Trade-off</div>
+    Copy-and-swap is easier to get exception-safe than hand-rolling four separate special members, but it isn't always the fastest option — it can force an extra move compared to a hand-optimized move-assignment operator that reuses existing capacity (e.g. a <code>vector</code>'s buffer if it's already large enough). Reach for it when correctness and simplicity matter more than squeezing out the last allocation.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 5: RULE OF FIVE                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-number">5</div>
     <div class="section-title">The Rule of Five (and the Rule of Zero)</div>
   </div>
 
@@ -418,15 +525,20 @@
     <tr><td>Class should be non-copyable, move-only</td><td><code>= delete</code> the copy ctor/assignment, <code>= default</code> the move ctor/assignment</td></tr>
   </table>
 
+  <div class="callout trap">
+    <div class="ctitle">⚠ A Common Trap</div>
+    Declaring <em>only</em> a destructor (say, to log when an object is destroyed) silently disables the compiler-generated move constructor and move assignment — the class falls back to copying everywhere a move was expected, with no warning. If you must write a custom destructor for a class that's otherwise fine to copy/move by default, explicitly <code>= default</code> the other four rather than leaving them implicit.
+  </div>
+
   <p class="dim">In practice, the rule of zero is the goal: compose your class out of RAII types (<code>unique_ptr</code>, <code>vector</code>, <code>string</code>) so you never have to hand-write any of the five. Hand-writing them, as in the <code>Buffer</code> example above, is what you do <em>inside</em> the low-level wrapper types themselves.</p>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 5: COPY ELISION                                    -->
+<!--  SECTION 6: COPY ELISION                                    -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s5">
+<div class="section" id="s6">
   <div class="section-header">
-    <div class="section-number">5</div>
+    <div class="section-number">6</div>
     <div class="section-title">Copy Elision &amp; RVO</div>
   </div>
 
@@ -444,14 +556,21 @@
     <div class="ctitle">💡 Common Misconception</div>
     Writing <code>return std::move(b);</code> here is actively harmful — it disables guaranteed copy elision (in the unnamed-return-value case) or the compiler's NRVO (in the named case) and forces an actual move constructor call where the compiler could otherwise have skipped construction entirely. Just <code>return b;</code>.
   </div>
+
+  <table>
+    <tr><th>Case</th><th>What Happens</th></tr>
+    <tr><td><code>return T{...};</code> (unnamed temporary)</td><td>Guaranteed elision since C++17 — not just permitted, mandatory. No move ctor is even required to exist.</td></tr>
+    <tr><td><code>return local;</code> (NRVO — named local)</td><td>Elision is <em>permitted</em>, not guaranteed, though every major compiler performs it in simple cases. A move ctor must still exist as a fallback.</td></tr>
+    <tr><td><code>return std::move(local);</code></td><td>Forces a move, defeating both forms above. Almost always the wrong call.</td></tr>
+  </table>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 6: PERFECT FORWARDING                              -->
+<!--  SECTION 7: PERFECT FORWARDING                              -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s6">
+<div class="section" id="s7">
   <div class="section-header">
-    <div class="section-number">6</div>
+    <div class="section-number">7</div>
     <div class="section-title">Perfect Forwarding &amp; std::forward</div>
   </div>
 
@@ -468,28 +587,164 @@
 <span class="ln">8</span> <span class="fn">wrapper</span>(<span class="ty">Widget</span>{});      <span class="cm">// T deduced as Widget    -&gt; forwards as rvalue</span></div>
 
   <p class="dim">This is exactly the mechanism behind <code>std::make_unique</code>, <code>std::make_shared</code>, and container <code>emplace</code> functions — they forward constructor arguments without forcing an extra copy, regardless of whether the caller passed a temporary or a named variable.</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ T&amp;&amp; Is Not Always Forwarding</div>
+    <code>T&amp;&amp;</code> is a forwarding reference only when <code>T</code> is deduced <em>in that same expression</em> — a plain function template parameter, or <code>auto&amp;&amp;</code>. Inside a class template, <code>void f(T&amp;&amp; x)</code> where <code>T</code> is the class's own template parameter (already fixed when the class was instantiated) is an ordinary rvalue reference, not a forwarding one, because there's no deduction left to do at that point.
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 7: PITFALLS                                        -->
+<!--  SECTION 8: COST COMPARED                                   -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s7">
+<div class="section" id="s8">
   <div class="section-header">
-    <div class="section-number">7</div>
+    <div class="section-number">8</div>
+    <div class="section-title">Cost Compared: Move vs. Copy</div>
+  </div>
+  <p>Move semantics only pay off for types that own an out-of-line resource. For anything else, "moving" and "copying" are the same operation under the hood.</p>
+
+  <div class="cx-grid">
+    <div class="cx-cell">
+      <span class="cx-name">int, double</span>
+      <span class="cx-big">O(1)</span>
+      <span class="cx-label">move == copy, both trivial</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">small struct, no heap</span>
+      <span class="cx-big">O(1)</span>
+      <span class="cx-label">move == copy, bytewise</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">std::string / vector</span>
+      <span class="cx-big">O(1) vs O(n)</span>
+      <span class="cx-label">move reassigns a pointer; copy duplicates n elements</span>
+    </div>
+    <div class="cx-cell">
+      <span class="cx-name">unique_ptr</span>
+      <span class="cx-big">O(1) / N-A</span>
+      <span class="cx-label">move-only — copy doesn't compile</span>
+    </div>
+  </div>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Insight</div>
+    "Small String Optimization" (SSO) is the reason a short <code>std::string</code> move can be just as cheap as a copy in practice — very short strings are stored inline in the object itself, with no heap buffer to steal a pointer to. Move semantics show their real advantage on <em>large</em> containers, where copying means an O(n) allocation-and-duplicate and moving means an O(1) pointer swap.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 9: PITFALLS                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-number">9</div>
     <div class="section-title">Pitfalls &amp; Gotchas</div>
   </div>
   <ul>
     <li>Moving from a <code>const</code> object silently falls back to a copy — <code>const T&amp;&amp;</code> can't bind to a non-const move constructor, so overload resolution picks the copy constructor instead, with no warning.</li>
-    <li>Moving is not automatically cheap for every type — a small type with no heap allocation (like a plain struct of two ints) moves by copying its bytes anyway; move semantics pay off specifically for types that own a heap resource.</li>
+    <li>Moving is not automatically cheap for every type — a small type with no heap allocation (like a plain struct of two ints) moves by copying its bytes anyway; move semantics pay off specifically for types that own a heap resource (see §8).</li>
     <li>Using a variable after <code>std::move(x)</code> without reassigning it is a logic bug, not necessarily UB — but it's exactly the kind of bug that's easy to introduce during a refactor.</li>
     <li>Returning a member by <code>std::move</code> from a function that also needs the object afterward silently guts it — double check lifetime before adding <code>std::move</code> reflexively.</li>
-    <li>Forwarding references (<code>T&amp;&amp;</code> in a template) are easy to confuse with rvalue references (<code>T&amp;&amp;</code> in a concrete, non-template context) — they look identical but behave completely differently.</li>
+    <li>Forwarding references (<code>T&amp;&amp;</code> in a template, with <code>T</code> deduced) are easy to confuse with rvalue references (<code>T&amp;&amp;</code> in a concrete, non-template context, or with <code>T</code> already fixed) — they look identical but behave completely differently (see §7).</li>
+    <li>Declaring a custom destructor (even an empty one, even just for logging) silently disables the implicitly-generated move constructor and move assignment — the class quietly falls back to copying everywhere (see §5).</li>
+    <li>In a range-based <code>for (auto x : container)</code>, each <code>x</code> is a copy, not a move, even on the last iteration — moving out of a container element during iteration requires an explicit <code>std::move(x)</code> and generally shouldn't be done while still iterating over the container.</li>
+    <li><code>std::move</code> on a <code>const</code> lvalue reference parameter (e.g. a function taking <code>const T&amp; x</code>, then calling <code>std::move(x)</code> internally) still resolves to a copy — the const-ness propagates through the cast, so the "move" quietly does nothing useful.</li>
   </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: SELF-TEST                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try answering in your head first — these are pitched at the level a technical interview would ask.</p>
+
+  <details class="qa">
+    <summary>What does std::move actually do, mechanically?</summary>
+    <div class="qa-a">
+      <p>Nothing at runtime by itself — it's just <code>static_cast&lt;T&amp;&amp;&gt;(x)</code>, producing an xvalue that refers to the same storage as <code>x</code> but is now eligible to bind to a move constructor or move-assignment operator. The actual stealing of resources happens inside whichever function receives that cast expression.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why is `std::move(x)` an xvalue rather than a prvalue?</summary>
+    <div class="qa-a">
+      <p>Because it still has identity — it refers to the existing object <code>x</code>, at <code>x</code>'s actual address, not a freshly computed temporary. A prvalue (like a literal or a function's by-value return) has no identity at all. xvalue is exactly the overlap: identity plus movable-from.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>A class defines only a custom destructor. What happens to its move constructor?</summary>
+    <div class="qa-a">
+      <p>It's not implicitly generated. Declaring any of the five special members (even just the destructor) suppresses the compiler-generated move constructor and move assignment, so the class silently falls back to copying wherever a move would otherwise have been used — with no compiler warning.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why does `return std::move(local);` usually make code slower, not faster?</summary>
+    <div class="qa-a">
+      <p>It defeats copy elision / NRVO. Without the explicit <code>std::move</code>, the compiler is either required (unnamed temporary) or very likely (named local, via NRVO) to construct the object directly in the caller's storage — zero move or copy calls at all. Forcing <code>std::move</code> turns that free construction into an actual move constructor call.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Is `T&amp;&amp; x` in `template&lt;typename T&gt; void f(T&amp;&amp; x)` a forwarding reference or an rvalue reference?</summary>
+    <div class="qa-a">
+      <p>A forwarding reference — <code>T</code> is deduced right there from the argument passed to <code>f</code>, which is the specific condition that makes <code>T&amp;&amp;</code> bind to both lvalues and rvalues. If <code>T</code> were already fixed before this point (e.g. it's a class template's parameter, not deduced at the call to <code>f</code> itself), the same syntax would be an ordinary rvalue reference instead.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why does the copy-and-swap idiom take its assignment parameter by value instead of by const reference?</summary>
+    <div class="qa-a">
+      <p>Taking it by value lets the caller's argument dictate whether a copy or a move happens, before <code>operator=</code> even starts: passing an lvalue copy-constructs the parameter (deep copy), passing an rvalue or <code>std::move(x)</code> move-constructs it (cheap). The body of <code>operator=</code> is then identical either way — just a <code>swap</code> — so one function correctly implements both copy-assignment and move-assignment.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 11: CHEAT SHEET                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-number">11</div>
+    <div class="section-title">Decision Cheat Sheet</div>
+  </div>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Returning a local object</h4>
+      <p>Just <code>return local;</code> — never wrap it in <code>std::move</code>. Let RVO/NRVO do its job.</p>
+    </div>
+    <div class="info-card">
+      <h4>Passing a resource you no longer need</h4>
+      <p><code>callee(std::move(x))</code> — but only if you truly don't need <code>x</code>'s value afterward.</p>
+    </div>
+    <div class="info-card">
+      <h4>Writing a class that owns a resource</h4>
+      <p>Rule of five, or wrap the resource in an existing RAII type and get rule of zero instead.</p>
+    </div>
+    <div class="info-card">
+      <h4>Exception-safe assignment</h4>
+      <p>Copy-and-swap: value parameter + a <code>noexcept</code> <code>swap</code> (§4) — one function, both copy- and move-assignment.</p>
+    </div>
+    <div class="info-card">
+      <h4>Forwarding constructor args generically</h4>
+      <p>A template with <code>T&amp;&amp;</code> params (deduced) plus <code>std::forward&lt;T&gt;(arg)</code> at each use — see <code>make_unique</code>, <code>emplace_back</code>.</p>
+    </div>
+    <div class="info-card">
+      <h4>Move constructor with several members</h4>
+      <p>Prefer <code>std::exchange(other.member, reset_value)</code> per member over separate assign-then-null statements.</p>
+    </div>
+  </div>
 </div>
 
 <footer>
   C++ Move Semantics · Value Categories Companion Notes<br>
-  Covers: Lvalues &amp; Rvalues · std::move · Move Constructor &amp; Assignment · Rule of Five/Zero · Copy Elision &amp; RVO · Perfect Forwarding
+  Covers: Value Category Taxonomy · std::move · Move Ctor/Assignment · Copy-and-Swap · Rule of Five/Zero · Copy Elision &amp; RVO · Perfect Forwarding · Self-Test
 </footer>
 
 </body>
