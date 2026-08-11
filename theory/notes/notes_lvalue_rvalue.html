@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L-Values &amp; R-Values — C++ Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c14;
+    --bg2:       #0f121e;
+    --bg3:       #151a2a;
+    --border:    #232a42;
+    --blue:      #5b8af0;
+    --blue2:     #93b4f7;
+    --blue-dim:  #2a3a70;
+    --pink:      #f472b6;
+    --pink-dim:  #7a2e56;
+    --text:      #dde2f0;
+    --text-dim:  #7680a0;
+    --gold:      #c9a84c;
+    --gold2:     #e8c97a;
+    --green:     #4ade80;
+    --rose:      #fb7185;
+    --sky:       #38bdf8;
+    --teal:      #2dd4bf;
+    --amber:     #fbbf24;
+    --lime:      #a3e635;
+    --violet:    #a78bfa;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.78;
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 2rem 2rem 6rem;
+  }
+
+  .masthead {
+    text-align: center;
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .masthead::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 55% at 50% -5%, #5b8af022, transparent);
+    pointer-events: none;
+  }
+  .masthead .series-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: var(--blue-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.9rem;
+  }
+  .masthead h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--blue2), var(--pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    line-height: 1.25;
+    margin-bottom: 0.6rem;
+  }
+  .masthead .subtitle { color: var(--text-dim); font-size: 1rem; font-style: italic; }
+
+  .toc {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3.5rem;
+  }
+  .toc h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    color: var(--blue);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+  .toc ol { padding-left: 1.4rem; }
+  .toc li { margin: 0.28rem 0; }
+  .toc a { color: var(--text-dim); text-decoration: none; font-size: 0.93rem; transition: color .15s; }
+  .toc a:hover { color: var(--blue2); }
+  .toc .sub { padding-left: 1.2rem; font-size: 0.87rem; list-style-type: disc; }
+
+  .section { margin-bottom: 4.5rem; }
+  .section-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    margin-bottom: 2rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-number { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--blue-dim); min-width: 2.5rem; }
+  .section-title   { font-family: 'Cinzel', serif; font-size: 1.5rem; color: var(--blue2); font-weight: 600; }
+
+  h3 { font-family: 'Cinzel', serif; font-size: 1.02rem; color: var(--text); margin: 2.4rem 0 0.9rem; letter-spacing: 0.05em; font-weight: 600; }
+  h4 { font-size: 1rem; color: var(--blue); margin: 1.5rem 0 0.5rem; font-style: italic; font-weight: 500; }
+
+  p { margin-bottom: 0.85rem; }
+  p.dim { color: var(--text-dim); }
+
+  .fbox {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px; padding: 1.1rem 1.5rem; margin: 1rem 0; overflow-x: auto;
+  }
+  .fbox.gold   { border-left-color: var(--gold); }
+  .fbox.pink   { border-left-color: var(--pink); }
+  .fbox.teal   { border-left-color: var(--teal); }
+  .fbox.green  { border-left-color: var(--green); }
+  .fbox.amber  { border-left-color: var(--amber); }
+
+  .flabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; color: var(--text-dim);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.45rem;
+  }
+
+  .code-block {
+    background: #080a10;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--pink);
+    border-radius: 4px;
+    padding: 1.1rem 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #c8d3e8;
+  }
+  .code-block .kw { color: var(--pink); }
+  .code-block .ty { color: var(--sky); }
+  .code-block .fn { color: var(--amber); }
+  .code-block .cm { color: #5a6a7a; font-style: italic; }
+  .code-block .st { color: var(--lime); }
+  .code-block .nm { color: var(--blue2); }
+  .code-block .op { color: var(--pink); }
+  .code-block .ln { color: #3a4560; display:inline-block; width:1.4em; user-select:none; }
+
+  .callout { border-radius: 4px; padding: 1rem 1.4rem; margin: 1.2rem 0; font-size: 0.95rem; }
+  .callout.tip     { background: #0a1e10; border-left: 3px solid var(--green); }
+  .callout.trap    { background: #1e0a0a; border-left: 3px solid var(--rose); }
+  .callout.insight { background: #140a22; border-left: 3px solid var(--violet); }
+  .callout.example { background: #08101e; border-left: 3px solid var(--sky); }
+  .callout.cpp     { background: #150a1c; border-left: 3px solid var(--pink); }
+  .callout.proof   { background: var(--bg2); border: 1px dashed var(--border); font-style: italic; color: var(--text-dim); }
+
+  .ctitle { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; }
+  .callout.tip     .ctitle { color: var(--green); }
+  .callout.trap    .ctitle { color: var(--rose); }
+  .callout.insight .ctitle { color: var(--violet); }
+  .callout.example .ctitle { color: var(--sky); }
+  .callout.cpp     .ctitle { color: var(--pink); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.91rem; }
+  th { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-dim); padding: 0.6rem 0.8rem; text-align: left; background: var(--bg2); }
+  td { padding: 0.52rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--bg2); }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; display: flex; gap: 1rem; margin: 0.7rem 0; }
+  .steps li::before {
+    content: counter(step);
+    background: var(--blue-dim); color: var(--blue2);
+    font-family: 'Cinzel', serif; font-size: 0.72rem;
+    min-width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 0.15rem;
+  }
+
+  .concept-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.4rem 1.8rem; margin: 1.6rem 0;
+  }
+  .concept-card h4 {
+    font-family: 'Cinzel', serif; font-size: 1.02rem; color: var(--blue2);
+    margin-top: 0; margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;
+    font-style: normal; letter-spacing: 0.05em;
+  }
+
+  .cx-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  .cx-cell {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.7rem 0.8rem;
+    text-align: center;
+  }
+  .cx-cell .cx-name  { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--blue2); display: block; margin-bottom: 0.25rem; letter-spacing: 0.04em; }
+  .cx-cell .cx-big   { font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; color: var(--amber); }
+  .cx-cell .cx-label { font-size: 0.72rem; color: var(--text-dim); display: block; margin-top: 0.15rem; }
+
+  .info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin:1.2rem 0; }
+  .info-grid.two { grid-template-columns:repeat(2,1fr); }
+  .info-card { background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:1.1rem 1.3rem; }
+  .info-card h4 { font-family:'Cinzel',serif; font-size:0.92rem; color:var(--blue2); margin-bottom:0.5rem; font-style:normal; letter-spacing:0.03em; }
+  .info-card p { font-size:0.9rem; color:var(--text-dim); margin:0; }
+
+  .diagram { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 1.6rem; margin: 1.3rem 0; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram .cap { margin-top: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); text-align: center; letter-spacing: 0.03em; }
+
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.83em; background: var(--bg3); border: 1px solid var(--border); padding: 0.1em 0.4em; border-radius: 3px; color: var(--blue2); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  ul { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ul li { margin: 0.3rem 0; }
+  ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ol li { margin: 0.3rem 0; }
+
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
+  .badge { display:inline-block; font-family:'JetBrains Mono',monospace; font-size:0.68rem; letter-spacing:0.08em; padding:0.15em 0.55em; border-radius:3px; text-transform:uppercase; }
+  .badge.lv  { background:#1a2a52; color:var(--blue2); border:1px solid var(--blue-dim); }
+  .badge.pr  { background:#3a1230; color:#f9a8d4; border:1px solid var(--pink-dim); }
+  .badge.xv  { background:#0d3320; color:var(--green); border:1px solid #1e6b45; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; padding: 1rem 1rem 4rem; }
+    .masthead h1 { font-size: 1.5rem; }
+    .cx-grid { grid-template-columns: repeat(2, 1fr); }
+    .info-grid, .info-grid.two { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ MASTHEAD ═══════════ -->
+<div class="masthead">
+  <div class="series-label">Value Categories · C++ Companion — Supplement</div>
+  <h1>L-Values &amp; R-Values</h1>
+  <div class="subtitle">A deeper dive into the value category system itself — where the names come from, how to classify any expression, reference binding rules, reference collapsing, decltype, and overload resolution mechanics</div>
+</div>
+
+<!-- ═══════════ TOC ═══════════ -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">A Bit of History: Where "L" and "R" Come From</a></li>
+    <li><a href="#s2">The Value Category Tree, Formally</a></li>
+    <li><a href="#s3">Classifying Every Kind of Expression</a>
+      <ul class="sub">
+        <li><a href="#s3-surprises">The Surprising Cases</a></li>
+      </ul>
+    </li>
+    <li><a href="#s4">Reference Types &amp; Binding Rules</a>
+      <ul class="sub">
+        <li><a href="#s4-lref">Lvalue References</a></li>
+        <li><a href="#s4-lifetime">Const Reference Lifetime Extension</a></li>
+        <li><a href="#s4-rref">Rvalue References</a></li>
+        <li><a href="#s4-table">What Binds to What</a></li>
+      </ul>
+    </li>
+    <li><a href="#s5">Reference Collapsing</a></li>
+    <li><a href="#s6">decltype and Value Category</a></li>
+    <li><a href="#s7">Overload Resolution Mechanics</a></li>
+    <li><a href="#s8">The Classic Gotcha: A Named Rvalue Reference Is an Lvalue</a></li>
+    <li><a href="#s9">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s10">Self-Test</a></li>
+    <li><a href="#s11">Cheat Sheet</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 1: HISTORY                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <div class="section-title">A Bit of History: Where "L" and "R" Come From</div>
+  </div>
+
+  <p>The terms predate move semantics entirely — they go back to C, and originally described nothing more than which side of an assignment an expression was allowed to sit on.</p>
+
+  <div class="concept-card">
+    <h4>The Original, Purely Syntactic Definition</h4>
+    <p><strong>lvalue</strong> — short for "left value" — meant an expression that could legally appear on the <em>left</em>-hand side of <code>=</code>, because it designated an actual storage location. <strong>rvalue</strong> ("right value") meant an expression that could only appear on the <em>right</em>-hand side, because it was just a value with nowhere to be written back to.</p>
+  </div>
+
+  <div class="flabel">c_style_lr.c</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">int</span> x = 5;
+<span class="ln">2</span> x = 10;        <span class="cm">// OK — x designates storage, can sit on the left</span>
+<span class="ln">3</span> 10 = x;        <span class="cm">// error — 10 has no storage to assign into</span>
+<span class="ln">4</span> (x + 1) = 10;  <span class="cm">// error — x + 1 is a computed value, not a location</span></div>
+
+  <p>C++ inherited this vocabulary but kept stretching it well past "which side of <code>=</code>" the moment references and <code>const</code> entered the picture — a <code>const int&amp;</code> is unambiguously an lvalue (it names storage), yet it cannot legally appear on the left of <code>=</code>. By the time C++11 added move semantics, the assignability story had already broken down; what the language actually needed was a way to talk about <em>identity</em> (does this expression name a persistent object?) and <em>resource-stealability</em> (is it safe to cannibalize?) as two separate questions. That's the taxonomy in §2 — the "left/right" names stuck around for historical continuity, but they no longer describe the concepts they're attached to.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ The Names Are a Historical Accident</div>
+    Don't try to derive "lvalue" and "rvalue" from first principles using the literal words "left" and "right" — it will actively mislead you once <code>const</code>, references, and move semantics are in play. Treat them as proper nouns for two axes defined in §2: <em>identity</em> and <em>movability</em>, not as a claim about assignment-statement geometry.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 2: THE TREE, FORMALLY                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <div class="section-title">The Value Category Tree, Formally</div>
+  </div>
+
+  <p>Every C++ expression — not every variable, every <em>expression</em> — has exactly one value category, decided at compile time from two independent properties:</p>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Has identity?</h4>
+      <p>Does the expression refer to an entity that persists — something you could compare addresses of, or refer to again later? If yes, it's a <strong>glvalue</strong>.</p>
+    </div>
+    <div class="info-card">
+      <h4>Can be moved from?</h4>
+      <p>Is it safe for a function to cannibalize the resources behind this expression, because nothing else depends on it surviving? If yes, it's an <strong>rvalue</strong>.</p>
+    </div>
+  </div>
+
+  <p>Cross those two yes/no questions and you get exactly three terminal categories — this is the same tree the move semantics notes introduced; the table below restates it as a truth table, which is the more useful mental model once you start classifying tricky expressions in §3.</p>
+
+  <table>
+    <tr><th>Category</th><th>Has identity</th><th>Movable-from</th><th>Colloquial gloss</th></tr>
+    <tr><td><span class="badge lv">lvalue</span></td><td>✓</td><td>✗</td><td>"a thing with a name/address that you must not silently gut"</td></tr>
+    <tr><td><span class="badge xv">xvalue</span></td><td>✓</td><td>✓</td><td>"a thing with a name/address that you're explicitly allowed to gut"</td></tr>
+    <tr><td><span class="badge pr">prvalue</span></td><td>✗</td><td>✓</td><td>"a value being computed right now, with no address of its own yet"</td></tr>
+  </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Why prvalue Isn't Just "a Copy of Rvalue"</div>
+    A prvalue genuinely has no address until it's used to initialize something — <code>42</code>, <code>a + b</code>, and <code>Widget{}</code> aren't "temporary objects sitting somewhere waiting to be identified"; the standard treats them as values-in-flight. This is precisely why <code>&amp;42</code> and <code>&amp;(a + b)</code> are compile errors: you're asking for the address of something that, conceptually, doesn't have one yet.
+  </div>
+
+  <p class="dim">glvalue (lvalue ∪ xvalue) and rvalue (xvalue ∪ prvalue) are umbrella terms layered on top of these three — useful when a rule cares about only one axis. Reference-binding rules, for instance, are usually phrased in terms of the rvalue/glvalue split rather than the three-way split directly.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 3: CLASSIFYING EXPRESSIONS                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <div class="section-title">Classifying Every Kind of Expression</div>
+  </div>
+
+  <p>Fluency with value categories comes from being able to classify an arbitrary expression on sight. The table below is deliberately exhaustive — treat it as a reference, not something to memorize in one pass.</p>
+
+  <table>
+    <tr><th>Expression</th><th>Category</th><th>Why</th></tr>
+    <tr><td><code>x</code> (named variable)</td><td><span class="badge lv">lvalue</span></td><td>Names a persistent object with an address</td></tr>
+    <tr><td><code>42</code>, <code>3.14</code>, <code>true</code>, <code>nullptr</code></td><td><span class="badge pr">prvalue</span></td><td>Literal values, no identity</td></tr>
+    <tr><td><code>"hello"</code></td><td><span class="badge lv">lvalue</span></td><td>String literals are the odd one out among literals — the array they denote has static storage duration and a real address</td></tr>
+    <tr><td><code>x + y</code>, <code>x * 2</code>, any arithmetic</td><td><span class="badge pr">prvalue</span></td><td>Computes a fresh value with no persistent storage</td></tr>
+    <tr><td><code>*ptr</code> (dereference)</td><td><span class="badge lv">lvalue</span></td><td>Names the object the pointer points to</td></tr>
+    <tr><td><code>&amp;x</code> (address-of)</td><td><span class="badge pr">prvalue</span></td><td>Produces a pointer value, not a reference to storage</td></tr>
+    <tr><td><code>arr[i]</code></td><td><span class="badge lv">lvalue</span></td><td>Equivalent to <code>*(arr + i)</code> — a dereference</td></tr>
+    <tr><td><code>obj.member</code></td><td>same as <code>obj</code></td><td>Member access preserves the value category of the object it's accessed through</td></tr>
+    <tr><td><code>ptr->member</code></td><td><span class="badge lv">lvalue</span></td><td>Implicitly dereferences <code>ptr</code> first</td></tr>
+    <tr><td><code>f()</code> where <code>f</code> returns <code>T</code></td><td><span class="badge pr">prvalue</span></td><td>By-value return constructs a fresh, identity-less value</td></tr>
+    <tr><td><code>f()</code> where <code>f</code> returns <code>T&amp;</code></td><td><span class="badge lv">lvalue</span></td><td>Reference return names existing storage</td></tr>
+    <tr><td><code>f()</code> where <code>f</code> returns <code>T&amp;&amp;</code></td><td><span class="badge xv">xvalue</span></td><td>Has identity (refers to real storage) but is explicitly flagged movable</td></tr>
+    <tr><td><code>std::move(x)</code></td><td><span class="badge xv">xvalue</span></td><td>Literally just <code>static_cast&lt;T&amp;&amp;&gt;(x)</code> — falls under the rule directly above</td></tr>
+    <tr><td><code>static_cast&lt;T&amp;&gt;(x)</code></td><td><span class="badge lv">lvalue</span></td><td>Casting to an lvalue reference type yields an lvalue</td></tr>
+    <tr><td><code>static_cast&lt;T&gt;(x)</code></td><td><span class="badge pr">prvalue</span></td><td>Casting to a non-reference type yields a prvalue — a fresh value</td></tr>
+    <tr><td><code>++x</code> (pre-increment)</td><td><span class="badge lv">lvalue</span></td><td>Returns a reference to <code>x</code> itself, after incrementing</td></tr>
+    <tr><td><code>x++</code> (post-increment)</td><td><span class="badge pr">prvalue</span></td><td>Returns the old value by value, in a temporary</td></tr>
+    <tr><td><code>x = y</code> (assignment)</td><td><span class="badge lv">lvalue</span></td><td><code>operator=</code> returns <code>T&amp;</code> by convention — enables chaining, <code>a = b = c</code></td></tr>
+    <tr><td><code>x ? a : b</code> (ternary)</td><td>lvalue if both arms are lvalues of the same type; otherwise prvalue</td><td>Category depends on the arms — mixing an lvalue arm with a prvalue arm forces a prvalue result</td></tr>
+    <tr><td><code>(x)</code> (parenthesized)</td><td>same as <code>x</code></td><td>Parentheses never change value category — but see §6 for why this still matters</td></tr>
+    <tr><td><code>this</code></td><td><span class="badge pr">prvalue</span></td><td><code>this</code> is a pointer <em>value</em>, computed each time it's used — <code>*this</code>, by contrast, is an lvalue</td></tr>
+    <tr><td><code>T{...}</code> (braced temporary)</td><td><span class="badge pr">prvalue</span></td><td>A freshly constructed temporary with no name</td></tr>
+    <tr><td>lambda expression</td><td><span class="badge pr">prvalue</span></td><td>Produces a temporary closure object</td></tr>
+    <tr><td><code>(a, b)</code> (comma operator)</td><td>same as <code>b</code></td><td>Evaluates <code>a</code>, discards it, yields <code>b</code>'s value category unchanged</td></tr>
+    <tr><td><code>throw expr</code></td><td><span class="badge pr">prvalue</span></td><td>A throw-expression has type <code>void</code> and is a prvalue (rarely relevant, but classifiable)</td></tr>
+  </table>
+
+  <h3 id="s3-surprises">3.1 The Surprising Cases</h3>
+  <p>Three entries above are the ones people get wrong most often in interviews:</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ String Literals Are Lvalues</div>
+    <code>"hello"</code> has type <code>const char[6]</code> and static storage duration — it exists for the entire program, has a real address, and you can bind an lvalue reference to it (<code>const char (&amp;r)[6] = "hello";</code> compiles fine). Every other literal (<code>42</code>, <code>3.14</code>, <code>true</code>) is a prvalue; string literals are the sole exception, because they're arrays, not scalar values.
+  </div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Post-Increment Forces a Copy for This Exact Reason</div>
+    <code>x++</code> must return a prvalue (the pre-increment value), which means it has to materialize a temporary holding the old value before incrementing <code>x</code> itself — that's an unavoidable extra copy that <code>++x</code> doesn't pay. It's not a style preference that idiomatic C++ prefers <code>++it</code> over <code>it++</code> in loop headers; for non-trivial iterator types the value-category difference is a real cost.
+  </div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ this Is a Prvalue, but *this Is an Lvalue</div>
+    It's easy to assume <code>this</code> behaves like any other pointer variable and is therefore an lvalue — it isn't; you can't take <code>&amp;this</code> or assign to it. What you dereference to get the actual object, <code>*this</code>, is the lvalue, which is why <code>return *this;</code> in an assignment operator returns a reference correctly (see the move semantics notes, §4).
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 4: REFERENCE TYPES & BINDING                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <div class="section-title">Reference Types &amp; Binding Rules</div>
+  </div>
+
+  <p>References are where value categories stop being a classification exercise and start having real consequences — which reference type a given expression can bind to determines which function overload gets called, and therefore whether you copy or move.</p>
+
+  <h3 id="s4-lref">4.1 Lvalue References — T&amp;</h3>
+  <p>A non-const lvalue reference binds only to lvalues. This is a deliberate safety rail: it stops a function from silently modifying a temporary that's about to be destroyed anyway, which is almost never what the caller meant.</p>
+
+  <div class="flabel">lref_binding.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">void</span> <span class="fn">f</span>(<span class="kw">int</span>&amp; r);
+<span class="ln">2</span> <span class="kw">int</span> x = 5;
+<span class="ln">3</span> <span class="fn">f</span>(x);        <span class="cm">// OK — x is an lvalue</span>
+<span class="ln">4</span> <span class="fn">f</span>(10);       <span class="cm">// error — 10 is a prvalue, can't bind to int&amp;</span>
+<span class="ln">5</span> <span class="fn">f</span>(x + 1);    <span class="cm">// error — x + 1 is a prvalue</span></code></div>
+
+  <h3 id="s4-lifetime">4.2 Const Lvalue Reference Lifetime Extension</h3>
+  <p><code>const T&amp;</code> is the one exception to "lvalue references need lvalues" — it can bind to an rvalue too, and when it does, the language extends the temporary's lifetime to match the reference's, instead of destroying it at the end of the full expression as would normally happen.</p>
+
+  <div class="flabel">lifetime_extension.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">const</span> std::<span class="ty">string</span>&amp; r = std::<span class="ty">string</span>(<span class="st">"temp"</span>);
+<span class="ln">2</span> <span class="cm">// normally the temporary string would be destroyed at the end of line 1 —</span>
+<span class="ln">3</span> <span class="cm">// binding it to a const&amp; extends its lifetime to match r's scope instead</span>
+<span class="ln">4</span> std::<span class="fn">cout</span> &lt;&lt; r;  <span class="cm">// well-defined — the temporary is still alive here</span></code></div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Lifetime Extension Does Not Propagate</div>
+    The extension only happens for the reference the temporary is bound to <em>directly</em>. If that reference is itself a class member initialized from a constructor parameter, or the temporary is returned from a function as a reference, the extension doesn't chain — you end up with a dangling reference. This is one of the more common sources of real-world use-after-free bugs in otherwise-idiomatic C++, precisely because the direct-binding case works fine and gives false confidence.
+  </div>
+
+  <p>This is also why "pass by <code>const T&amp;</code>" was the pre-C++11 default for avoiding unnecessary copies of large objects: it accepts both lvalues and rvalues through one signature, at the cost of never being able to move from what it receives (see the move semantics notes' rationale for why copy-and-swap instead takes its parameter <em>by value</em>).</p>
+
+  <h3 id="s4-rref">4.3 Rvalue References — T&amp;&amp;</h3>
+  <p>An rvalue reference binds only to rvalues (prvalues or xvalues) — the mirror image of a non-const lvalue reference. This is the type that overload resolution uses to route "safe to steal from" arguments into a different code path than named variables.</p>
+
+  <div class="flabel">rref_binding.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">void</span> <span class="fn">g</span>(std::<span class="ty">string</span>&amp;&amp; r);
+<span class="ln">2</span> std::<span class="ty">string</span> s = <span class="st">"hi"</span>;
+<span class="ln">3</span> <span class="fn">g</span>(s);                 <span class="cm">// error — s is an lvalue, won't bind to string&amp;&amp;</span>
+<span class="ln">4</span> <span class="fn">g</span>(std::<span class="fn">move</span>(s));    <span class="cm">// OK — std::move(s) is an xvalue</span>
+<span class="ln">5</span> <span class="fn">g</span>(std::<span class="ty">string</span>(<span class="st">"hi"</span>)); <span class="cm">// OK — a prvalue temporary</span></code></div>
+
+  <h3 id="s4-table">4.4 What Binds to What</h3>
+  <div class="diagram">
+    <svg viewBox="0 0 780 250" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#4ade80"/>
+        </marker>
+        <marker id="arrBd" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#7680a0"/>
+        </marker>
+      </defs>
+      <text x="70" y="30" fill="#dde2f0" font-family="JetBrains Mono" font-size="13" text-anchor="middle">lvalue</text>
+      <text x="390" y="30" fill="#4ade80" font-family="JetBrains Mono" font-size="13" text-anchor="middle">xvalue</text>
+      <text x="710" y="30" fill="#f9a8d4" font-family="JetBrains Mono" font-size="13" text-anchor="middle">prvalue</text>
+
+      <rect x="10" y="55" width="120" height="40" fill="none" stroke="#5b8af0" stroke-width="1.2"/>
+      <rect x="330" y="55" width="120" height="40" fill="none" stroke="#5b8af0" stroke-width="1.2" stroke-opacity="0.25"/>
+      <rect x="650" y="55" width="120" height="40" fill="none" stroke="#5b8af0" stroke-width="1.2" stroke-opacity="0.25"/>
+
+      <text x="10" y="130" fill="#93b4f7" font-family="JetBrains Mono" font-size="12">T&amp;</text>
+      <line x1="70" y1="100" x2="70" y2="122" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+
+      <text x="10" y="170" fill="#e8c97a" font-family="JetBrains Mono" font-size="12">const T&amp;</text>
+      <line x1="70" y1="100" x2="70" y2="162" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+      <line x1="70" y1="100" x2="390" y2="162" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+      <line x1="70" y1="100" x2="710" y2="162" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+
+      <text x="330" y="210" fill="#f472b6" font-family="JetBrains Mono" font-size="12">T&amp;&amp;</text>
+      <line x1="390" y1="100" x2="390" y2="202" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+      <line x1="710" y1="100" x2="390" y2="202" stroke="#4ade80" stroke-width="1.4" marker-end="url(#arrB)"/>
+    </svg>
+    <div class="cap">FIG 1 — green arrows show legal bindings; <code>const T&amp;</code> is the only reference type that accepts all three categories</div>
+  </div>
+
+  <table>
+    <tr><th>Reference type</th><th>lvalue</th><th>xvalue</th><th>prvalue</th></tr>
+    <tr><td><code>T&amp;</code></td><td>✓</td><td>✗</td><td>✗</td></tr>
+    <tr><td><code>const T&amp;</code></td><td>✓</td><td>✓</td><td>✓ (with lifetime extension)</td></tr>
+    <tr><td><code>T&amp;&amp;</code></td><td>✗</td><td>✓</td><td>✓</td></tr>
+    <tr><td><code>const T&amp;&amp;</code></td><td>✗</td><td>✓</td><td>✓</td></tr>
+  </table>
+
+  <p class="dim"><code>const T&amp;&amp;</code> exists and compiles, but it's rarely written by hand — it mostly shows up as the reason "moving from a const object falls back to copying" (see the move semantics notes' pitfalls list): a non-const move constructor's <code>T&amp;&amp;</code> parameter can't bind to a <code>const</code> rvalue, so overload resolution falls through to the copy constructor instead.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 5: REFERENCE COLLAPSING                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <div class="section-title">Reference Collapsing</div>
+  </div>
+
+  <p>C++ doesn't allow "a reference to a reference" as something you write directly — <code>int&amp; &amp;</code> is not legal syntax. But template deduction and <code>typedef</code>/<code>using</code> substitution can produce exactly that situation indirectly, and when they do, the compiler collapses the pair down to a single reference using four fixed rules.</p>
+
+  <table>
+    <tr><th>Written form</th><th>Collapses to</th></tr>
+    <tr><td><code>T&amp; &amp;</code></td><td><code>T&amp;</code></td></tr>
+    <tr><td><code>T&amp; &amp;&amp;</code></td><td><code>T&amp;</code></td></tr>
+    <tr><td><code>T&amp;&amp; &amp;</code></td><td><code>T&amp;</code></td></tr>
+    <tr><td><code>T&amp;&amp; &amp;&amp;</code></td><td><code>T&amp;&amp;</code></td></tr>
+  </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ The One-Line Summary</div>
+    An lvalue reference is "sticky" — if <em>either</em> side of the collapse is <code>&amp;</code>, the result is <code>&amp;</code>. The result is <code>&amp;&amp;</code> only when both sides are <code>&amp;&amp;</code>. This single rule is the entire mechanism behind forwarding references.
+  </div>
+
+  <div class="flabel">collapsing_in_practice.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">template</span>&lt;<span class="kw">typename</span> <span class="ty">T</span>&gt;
+<span class="ln">2</span> <span class="kw">void</span> <span class="fn">wrapper</span>(<span class="ty">T</span>&amp;&amp; arg);
+<span class="ln">3</span>
+<span class="ln">4</span> <span class="ty">Widget</span> w;
+<span class="ln">5</span> <span class="fn">wrapper</span>(w);
+<span class="ln">6</span> <span class="cm">// argument is an lvalue -&gt; T deduced as "Widget&amp;"</span>
+<span class="ln">7</span> <span class="cm">// parameter type is literally "Widget&amp; &amp;&amp;" before collapsing</span>
+<span class="ln">8</span> <span class="cm">// T&amp; &amp;&amp; collapses to T&amp;  -&gt;  arg's actual type is Widget&amp;</span>
+<span class="ln">9</span>
+<span class="ln">10</span><span class="fn">wrapper</span>(<span class="ty">Widget</span>{});
+<span class="ln">11</span><span class="cm">// argument is a prvalue -&gt; T deduced as "Widget" (no reference)</span>
+<span class="ln">12</span><span class="cm">// parameter type is "Widget &amp;&amp;", nothing to collapse</span>
+<span class="ln">13</span><span class="cm">// arg's actual type is Widget&amp;&amp;</span></code></div>
+
+  <p>This is exactly why the move semantics notes describe a forwarding reference as depending on deduction happening "in that same expression": deduction is the step that decides whether <code>T</code> becomes <code>Widget</code> or <code>Widget&amp;</code>, and reference collapsing is the mechanical step immediately after that turns that choice into the parameter's real type. <code>std::forward&lt;T&gt;(arg)</code> works by conditionally applying <code>std::move</code> based on exactly this deduced <code>T</code> — if <code>T</code> collapsed to an lvalue reference, <code>forward</code> produces an lvalue; otherwise it produces an xvalue.</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Reference Collapsing Also Applies to using/typedef and decltype</div>
+    The same four rules apply anywhere a reference-to-reference could arise mechanically — not just template parameter deduction. <code>using RRef = int&amp;&amp;; using LRef = RRef&amp;;</code> gives <code>LRef</code> the type <code>int&amp;</code>, by the same <code>T&amp;&amp; &amp;</code> → <code>T&amp;</code> rule.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 6: DECLTYPE                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <div class="section-title">decltype and Value Category</div>
+  </div>
+
+  <p><code>decltype</code> is the tool most directly wired into value category rules — and it has a famous quirk where wrapping an expression in an extra pair of parentheses changes its answer.</p>
+
+  <table>
+    <tr><th>Form</th><th>Rule</th></tr>
+    <tr><td><code>decltype(entity)</code></td><td>Where <code>entity</code> is exactly an unparenthesized variable/member name: yields the <em>declared</em> type of that entity</td></tr>
+    <tr><td><code>decltype(expr)</code></td><td>For any other expression, including a parenthesized name: yields <code>T</code> if <code>expr</code> is a prvalue, <code>T&amp;</code> if an lvalue, <code>T&amp;&amp;</code> if an xvalue</td></tr>
+  </table>
+
+  <div class="flabel">decltype_quirk.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">int</span> x = 0;
+<span class="ln">2</span> decltype(x)   a;   <span class="cm">// int   — x is an unparenthesized entity name -&gt; declared type</span>
+<span class="ln">3</span> decltype((x))  b;  <span class="cm">// int&amp;  — (x) is an expression, and x-as-expression is an lvalue</span>
+<span class="ln">4</span>
+<span class="ln">5</span> <span class="kw">struct</span> <span class="ty">S</span> { <span class="kw">int</span> m; };
+<span class="ln">6</span> <span class="ty">S</span> s;
+<span class="ln">7</span> decltype(s.m)   c;  <span class="cm">// int   — s.m is a member-access "entity" form</span>
+<span class="ln">8</span> decltype((s.m))  d;  <span class="cm">// int&amp;  — parenthesized -&gt; treated as expression -&gt; lvalue -&gt; int&amp;</span></code></div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ This Is a Real Bug Source in Generic Code</div>
+    Code that builds a return type with <code>auto f() -&gt; decltype((expr))</code>, or that uses <code>decltype(auto)</code>, is exactly where this bites: adding or removing a seemingly-cosmetic pair of parentheses around the trailing return expression can silently switch the function from returning a value to returning a reference, changing whether callers observe modifications or get dangling references to locals. <code>decltype(auto)</code> in particular inherits this sensitivity — it's <code>decltype</code> applied to whatever the initializing expression literally is, parentheses included.
+  </div>
+
+  <p class="dim">Contrast this with <code>auto</code> on its own, which always strips references and top-level <code>const</code>/<code>volatile</code> regardless of parentheses — <code>auto a = (x);</code> is always plain <code>int</code>, never <code>int&amp;</code>. The parenthesization sensitivity is specific to <code>decltype</code> and <code>decltype(auto)</code>.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 7: OVERLOAD RESOLUTION                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-number">7</div>
+    <div class="section-title">Overload Resolution Mechanics</div>
+  </div>
+
+  <p>When several overloads differ only by reference qualifier, the compiler ranks candidates by how good a match each parameter type is for the argument's value category — this is the mechanism that makes "pass an rvalue, get the move path; pass an lvalue, get the copy path" happen automatically, with zero runtime branching.</p>
+
+  <div class="flabel">overload_ranking.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">void</span> <span class="fn">process</span>(<span class="ty">Widget</span>&amp; w)        { <span class="cm">/* A: mutable lvalue only */</span> }
+<span class="ln">2</span> <span class="kw">void</span> <span class="fn">process</span>(<span class="kw">const</span> <span class="ty">Widget</span>&amp; w)  { <span class="cm">/* B: anything, fallback */</span> }
+<span class="ln">3</span> <span class="kw">void</span> <span class="fn">process</span>(<span class="ty">Widget</span>&amp;&amp; w)       { <span class="cm">/* C: rvalues only, best for them */</span> }
+<span class="ln">4</span>
+<span class="ln">5</span> <span class="ty">Widget</span> w;
+<span class="ln">6</span> <span class="kw">const</span> <span class="ty">Widget</span> cw;
+<span class="ln">7</span> <span class="fn">process</span>(w);              <span class="cm">// -&gt; A (exact match, non-const beats const)</span>
+<span class="ln">8</span> <span class="fn">process</span>(cw);             <span class="cm">// -&gt; B (only const&amp; can bind a const lvalue)</span>
+<span class="ln">9</span> <span class="fn">process</span>(std::<span class="ty">Widget</span>{});  <span class="cm">// -&gt; C (rvalue&amp;&amp; is preferred over const&amp; for rvalues)</span>
+<span class="ln">10</span><span class="fn">process</span>(std::<span class="fn">move</span>(w));  <span class="cm">// -&gt; C (xvalue, same preference as above)</span></code></div>
+
+  <p>The ranking that makes line 9 and 10 pick C over B is a specific, memorizable rule: <strong>given a choice between an rvalue reference and a const lvalue reference, and the argument is an rvalue, the rvalue reference always wins</strong> — it's considered a strictly better match. This is precisely why adding a <code>T&amp;&amp;</code> overload next to an existing <code>const T&amp;</code> overload is enough to opt a type into move semantics without touching any existing call sites: lvalues keep resolving to the old overload exactly as before, and only rvalues get rerouted.</p>
+
+  <table>
+    <tr><th>Argument is…</th><th>Candidates it can bind to</th><th>Which wins</th></tr>
+    <tr><td>non-const lvalue</td><td><code>T&amp;</code>, <code>const T&amp;</code></td><td><code>T&amp;</code> — exact match beats a match requiring an added qualifier</td></tr>
+    <tr><td>const lvalue</td><td><code>const T&amp;</code> only</td><td><code>const T&amp;</code> — the only legal candidate</td></tr>
+    <tr><td>rvalue (prvalue/xvalue)</td><td><code>T&amp;&amp;</code>, <code>const T&amp;</code></td><td><code>T&amp;&amp;</code> — rvalue ref beats const lvalue ref for rvalue arguments</td></tr>
+    <tr><td>const rvalue</td><td><code>const T&amp;&amp;</code>, <code>const T&amp;</code></td><td><code>const T&amp;&amp;</code> if present; otherwise falls back to <code>const T&amp;</code> — this is the "moving a const object falls back to copy" case, when only a non-const <code>T&amp;&amp;</code> exists</td></tr>
+  </table>
+
+  <div class="callout example">
+    <div class="ctitle">▸ Worked Example: Why This Is "Free"</div>
+    Notice nothing in <code>process</code>'s bodies branches on a runtime flag — the compiler selects among A/B/C entirely at compile time, based on the static value category of the call-site expression. This is the core payoff of the whole value-category system: move-vs-copy dispatch costs nothing at runtime because the decision was already made by the type checker.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 8: NAMED RVALUE REFS ARE LVALUES                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-number">8</div>
+    <div class="section-title">The Classic Gotcha: A Named Rvalue Reference Is an Lvalue</div>
+  </div>
+
+  <p>This single fact trips up almost everyone the first time they see it, and it's the reason <code>std::move</code> has to be called explicitly, over and over, even inside functions that already take a <code>T&amp;&amp;</code> parameter.</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ The Rule</div>
+    <strong>An rvalue reference variable, once it has a name, is itself an lvalue expression when you use that name.</strong> The <em>type</em> of the variable is "rvalue reference"; the <em>value category of the expression consisting of its name</em> is lvalue. Type and value category are answering different questions, and this is the case where they visibly diverge.
+  </div>
+
+  <div class="flabel">named_rref_is_lvalue.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">void</span> <span class="fn">take_by_rref</span>(std::<span class="ty">string</span>&amp;&amp; s) {
+<span class="ln">2</span>     std::<span class="ty">string</span> local = s;             <span class="cm">// COPY — s, used by name, is an lvalue</span>
+<span class="ln">3</span>     std::<span class="ty">string</span> moved = std::<span class="fn">move</span>(s); <span class="cm">// MOVE — explicit cast required to move s's resource</span>
+<span class="ln">4</span> }</code></div>
+
+  <p>If this weren't the rule, the parameter <code>s</code> inside <code>take_by_rref</code> would be silently movable on <em>every</em> use, including uses where the function still needs its value afterward — you'd get accidental double-moves or use-after-move bugs any time a function referenced its own by-rvalue-reference parameter more than once. Requiring an explicit <code>std::move(s)</code> each time the function actually intends to give the resource up is a deliberate safety design, not an oversight.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Why This Matters for Perfect Forwarding Specifically</div>
+    This is exactly why <code>std::forward&lt;T&gt;(arg)</code> is required inside a forwarding-reference function instead of just using <code>arg</code> directly (see the move semantics notes, §7) — <code>arg</code> by name is always an lvalue expression, regardless of whether the original caller passed an lvalue or an rvalue. <code>std::forward</code> is the mechanism that recovers the original value category from the deduced <code>T</code>, since the parameter's own name can no longer tell you.
+  </div>
+
+  <div class="callout example">
+    <div class="ctitle">▸ Contrast: Unnamed Rvalue References</div>
+    A function parameter is a special case because it's named. An expression that produces an rvalue reference type <em>without</em> being bound to a name — like the direct result of a function call returning <code>T&amp;&amp;</code>, e.g. <code>make_temp()</code> where <code>make_temp</code> returns <code>Widget&amp;&amp;</code> — is an xvalue, not an lvalue, precisely because it has no name yet. Naming is the dividing line.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 9: PITFALLS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-number">9</div>
+    <div class="section-title">Pitfalls &amp; Gotchas</div>
+  </div>
+  <ul>
+    <li>Treating "lvalue" and "rvalue" as synonyms for "variable" and "temporary" breaks down fast — <code>std::move(x)</code> is an rvalue (xvalue) referring to the exact same storage as the variable <code>x</code>, and a function returning <code>T&amp;</code> yields an lvalue that is itself a temporary-free reference to something that might outlive the call.</li>
+    <li>A named parameter of type <code>T&amp;&amp;</code> is an lvalue when used by its own name inside the function body — forgetting this is the single most common reason a "move" quietly turns into a copy (§8).</li>
+    <li><code>decltype(x)</code> and <code>decltype((x))</code> can differ — an extra pair of parentheses around a plain name switches <code>decltype</code> from "declared type" mode to "value-category-of-expression" mode (§6).</li>
+    <li>String literals are lvalues, not prvalues, unlike every other kind of literal — relevant when reasoning about which overload a call like <code>f("literal")</code> resolves to.</li>
+    <li><code>const T&amp;&amp;</code> is legal and occasionally intentional (used to explicitly forbid moving from a const rvalue in an API), but it's easy to write by accident when a macro or template mechanically adds <code>const</code> to an already-<code>&amp;&amp;</code>-qualified type — double-check generated signatures.</li>
+    <li>Lifetime extension for a temporary bound to <code>const T&amp;</code> only applies to the direct binding — passing that temporary through a constructor parameter or returning it by reference from a function breaks the chain and produces a dangling reference (§4.2).</li>
+    <li>Reference collapsing rules apply anywhere reference-to-reference could mechanically arise — not just in template argument deduction, but also through <code>using</code>/<code>typedef</code> aliases and certain <code>decltype</code> contexts (§5).</li>
+    <li>Post-increment (<code>x++</code>) is a prvalue and therefore necessarily materializes a temporary holding the pre-increment value, while pre-increment (<code>++x</code>) is an lvalue and avoids that temporary entirely — a real (if often small) performance difference for non-trivial types, not just a stylistic one.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: SELF-TEST                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try classifying each expression in your head before checking.</p>
+
+  <details class="qa">
+    <summary>What value category is `"hello"` (a string literal), and why is it different from `42`?</summary>
+    <div class="qa-a">
+      <p>Lvalue. Unlike numeric or boolean literals, a string literal denotes an array (<code>const char[N]</code>) with static storage duration — it has a real, persistent address for the whole program, which is exactly the definition of having identity. <code>42</code>, by contrast, is a prvalue with no storage of its own until it initializes something.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Inside `void f(Widget&amp;&amp; w) { ... }`, is the expression `w` an lvalue or an rvalue?</summary>
+    <div class="qa-a">
+      <p>Lvalue. The <em>type</em> of <code>w</code> is "rvalue reference to Widget," but once it has a name, using that name in an expression is an lvalue use. This is why <code>f</code> must write <code>std::move(w)</code> to actually move from it — plain <code>w</code> would copy.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What's the difference between `decltype(x)` and `decltype((x))` for a variable `int x`?</summary>
+    <div class="qa-a">
+      <p><code>decltype(x)</code> yields <code>int</code> — the declared type, because <code>x</code> is an unparenthesized entity name. <code>decltype((x))</code> yields <code>int&amp;</code> — the parentheses turn it into "just an expression," and <code>x</code> as an expression is an lvalue, so decltype's expression rule (lvalue → <code>T&amp;</code>) applies.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Given overloads `void g(const Widget&amp;)` and `void g(Widget&amp;&amp;)`, which one does `g(std::move(w))` call, and which rule decides it?</summary>
+    <div class="qa-a">
+      <p>The <code>Widget&amp;&amp;</code> overload. <code>std::move(w)</code> is an xvalue, which is a kind of rvalue; when an rvalue argument can bind to both a <code>const T&amp;</code> and a <code>T&amp;&amp;</code> overload, the rvalue-reference overload is ranked as the strictly better match and wins overload resolution.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What do the reference collapsing rules say happens to `T&amp; &amp;&amp;`?</summary>
+    <div class="qa-a">
+      <p>It collapses to <code>T&amp;</code>. The rule is that an lvalue reference is "sticky" — if either side of the notional reference-to-reference is <code>&amp;</code>, the result is <code>&amp;</code>; only <code>&amp;&amp;</code> combined with <code>&amp;&amp;</code> stays <code>&amp;&amp;</code>. This exact case is what happens when a forwarding reference <code>T&amp;&amp;</code> deduces <code>T</code> as <code>Widget&amp;</code> from an lvalue argument.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why does `const Widget cw; process(cw);` call the `const Widget&amp;` overload even if a `Widget&amp;&amp;` overload also exists?</summary>
+    <div class="qa-a">
+      <p><code>cw</code> is a const lvalue — it has identity and is not movable-from (it's an lvalue, plus it's const, which forbids moving from it even if it were an rvalue). A non-const <code>Widget&amp;&amp;</code> parameter can only bind to non-const rvalues, so it isn't a viable candidate at all here; <code>const Widget&amp;</code> is the only overload that can legally bind a const lvalue.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 11: CHEAT SHEET                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-number">11</div>
+    <div class="section-title">Cheat Sheet</div>
+  </div>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Classifying an expression fast</h4>
+      <p>Ask two questions: does it have an address/name (identity)? Is it safe to cannibalize (movable)? Both → xvalue. Identity only → lvalue. Movable only → prvalue.</p>
+    </div>
+    <div class="info-card">
+      <h4>Which reference type to write</h4>
+      <p><code>const T&amp;</code> to accept anything read-only; <code>T&amp;&amp;</code> to accept-and-consume rvalues specifically; <code>T&amp;</code> only when you need to mutate the caller's actual object.</p>
+    </div>
+    <div class="info-card">
+      <h4>Forwarding reference vs. rvalue reference</h4>
+      <p><code>T&amp;&amp;</code> is a forwarding reference only if <code>T</code> is deduced right there (template param or <code>auto&amp;&amp;</code>); otherwise it's an ordinary, rvalue-only rvalue reference.</p>
+    </div>
+    <div class="info-card">
+      <h4>Using a named T&amp;&amp; parameter safely</h4>
+      <p>Its name is an lvalue expression. Use it plainly for reads you still need; wrap it in <code>std::move</code> only at the one point you're done with it.</p>
+    </div>
+    <div class="info-card">
+      <h4>decltype parenthesization</h4>
+      <p>No parens around a bare name → declared type. Any other expression, parens included → value-category-derived type (T / T&amp; / T&amp;&amp;).</p>
+    </div>
+    <div class="info-card">
+      <h4>Reference collapsing, one line</h4>
+      <p>Any <code>&amp;</code> involved → result is <code>&amp;</code>. Only <code>&amp;&amp;</code> with <code>&amp;&amp;</code> stays <code>&amp;&amp;</code>.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  C++ L-Values &amp; R-Values · Value Categories Companion — Supplement to Move Semantics<br>
+  Covers: History &amp; Terminology · Full Expression Classification · Reference Binding Rules · Reference Collapsing · decltype · Overload Resolution · Named Rvalue References
+</footer>
+
+</body>
+</html>
