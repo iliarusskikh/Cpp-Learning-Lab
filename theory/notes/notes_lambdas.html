@@ -468,7 +468,7 @@
 
   <div class="callout insight">
     <div class="ctitle">◆ Insight</div>
-    The <code>std::function</code> version pays for type erasure (§7–8) on every recursive call. The deducing-<code>this</code> version keeps the lambda's own concrete closure type throughout the recursion — closer in cost to a hand-written recursive function.
+    The <code>std::function</code> version pays for type erasure (§8–9) on every recursive call. The deducing-<code>this</code> version keeps the lambda's own concrete closure type throughout the recursion — closer in cost to a hand-written recursive function.
   </div>
 </div>
 
@@ -507,11 +507,65 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 7: STD::FUNCTION                                   -->
+<!--  SECTION 7: FUNCTION POINTERS                                -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="section" id="s7">
   <div class="section-header">
     <div class="section-number">7</div>
+    <div class="section-title">Lambdas as Function Pointers</div>
+  </div>
+
+  <p>A capture-less lambda has no state to store — its closure object is empty — so the standard grants it an implicit conversion to a plain function pointer with matching signature. This is the mechanism that lets a lambda literal be dropped anywhere a C-style callback is expected: no closure object exists at the call site at all, just an ordinary code address.</p>
+
+  <h3 id="s7-ptr">7.1 Assigning to a Function Pointer</h3>
+  <div class="flabel">fnptr_assign.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">using</span> BinOp = <span class="kw">int</span>(*)(<span class="kw">int</span>, <span class="kw">int</span>);
+<span class="ln">2</span> BinOp add = [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a + b; };
+<span class="ln">3</span> add(2, 3);   <span class="cm">// 5 — calls through a plain function pointer, no closure object involved</span></div>
+  <p class="dim">Declaring <code>add</code> as <code>BinOp</code> rather than <code>auto</code> forces the conversion at the point of initialization. Had the lambda captured anything, this line would fail to compile — the target type has nowhere to store captured state.</p>
+
+  <h3 id="s7-capi">7.2 Passing to a C API</h3>
+  <p>The same conversion is what makes lambdas usable as callbacks for C library functions that only understand function pointers — <code>qsort</code>, <code>signal</code>, windowing-library callback registration, <code>pthread_create</code>, and similar APIs.</p>
+  <div class="flabel">qsort_lambda.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">int</span> data[] = {5, 2, 4, 1, 3};
+<span class="ln">2</span> std::<span class="fn">qsort</span>(data, 5, <span class="kw">sizeof</span>(<span class="kw">int</span>), [](<span class="kw">const</span> <span class="kw">void</span>* a, <span class="kw">const</span> <span class="kw">void</span>* b) {
+<span class="ln">3</span>     <span class="kw">return</span> *<span class="kw">static_cast</span>&lt;<span class="kw">const</span> <span class="kw">int</span>*&gt;(a) - *<span class="kw">static_cast</span>&lt;<span class="kw">const</span> <span class="kw">int</span>*&gt;(b);
+<span class="ln">4</span> });   <span class="cm">// the lambda literal decays to int(*)(const void*, const void*) at the call site</span></div>
+
+  <h3 id="s7-array">7.3 Arrays of Function Pointers</h3>
+  <p>Because each capture-less lambda decays independently, an array of them is just an ordinary array of function pointers — a common way to build an opcode table, a state-machine transition table, or a jump table without writing a named free function for every entry.</p>
+  <div class="flabel">dispatch_table.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">using</span> Op = <span class="kw">int</span>(*)(<span class="kw">int</span>, <span class="kw">int</span>);
+<span class="ln">2</span> Op table[] = {
+<span class="ln">3</span>     [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a + b; },   <span class="cm">// 0: add</span>
+<span class="ln">4</span>     [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a - b; },   <span class="cm">// 1: sub</span>
+<span class="ln">5</span>     [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a * b; },   <span class="cm">// 2: mul</span>
+<span class="ln">6</span> };
+<span class="ln">7</span> table[opcode](lhs, rhs);   <span class="cm">// dispatches straight off the opcode, no if/else chain</span></div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Only Capture-Less Lambdas Qualify</div>
+    Every element of <code>table</code> above must capture nothing — a single captured handler in the mix won't compile, because <code>Op</code> has nowhere to store state. If a handler needs access to surrounding data (a VM's register file, an interpreter's environment), thread it through explicitly as a parameter (e.g. a <code>Context*</code>) rather than trying to capture it — or switch the whole table to <code>std::function</code> as shown in §10.1, at the cost of the erasure overhead from §8–9.
+  </div>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Plain function pointer (<code>int(*)(int,int)</code>)</h4>
+      <p>Only capture-less lambdas convert. Zero storage per element — ideal for large jump tables. No way to smuggle in per-entry state.</p>
+    </div>
+    <div class="info-card">
+      <h4>std::function&lt;Sig&gt;</h4>
+      <p>Any lambda converts, captured or not. Each element pays for type erasure (§8–9), but entries can carry their own bound state.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 8: STD::FUNCTION                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-number">8</div>
     <div class="section-title">Lambda vs. std::function</div>
   </div>
 
@@ -533,11 +587,11 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 8: CAPTURE COST                                    -->
+<!--  SECTION 9: CAPTURE COST                                    -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s8">
+<div class="section" id="s9">
   <div class="section-header">
-    <div class="section-number">8</div>
+    <div class="section-number">9</div>
     <div class="section-title">Capture Cost Compared</div>
   </div>
   <p>What a closure actually costs depends entirely on what it captures and how it's stored — there's no single answer to "how expensive is a lambda."</p>
@@ -573,11 +627,81 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 9: PITFALLS                                        -->
+<!--  SECTION 10: MORE USE CASES & PATTERNS                       -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s9">
+<div class="section" id="s10">
   <div class="section-header">
-    <div class="section-number">9</div>
+    <div class="section-number">10</div>
+    <div class="section-title">More Use Cases &amp; Patterns</div>
+  </div>
+  <p>The sections above cover the mechanics; these are the shapes lambdas actually take in day-to-day code.</p>
+
+  <h3 id="s10-dispatch">10.1 Dispatch Tables With State</h3>
+  <p>§7.3's function-pointer table only works when every handler is capture-less. The moment a handler needs to close over surrounding state, the table has to hold <code>std::function</code> instead — same dispatch-by-key shape, but each slot can now be a full closure.</p>
+  <div class="flabel">command_dispatch.cpp</div>
+  <div class="code-block"><span class="ln">1</span> std::unordered_map&lt;std::string, std::function&lt;<span class="kw">void</span>(<span class="kw">const</span> Args&amp;)&gt;&gt; commands = {
+<span class="ln">2</span>     {<span class="st">"add"</span>,    [&amp;inventory](<span class="kw">const</span> Args&amp; a) { inventory.<span class="fn">add</span>(a[0]); }},
+<span class="ln">3</span>     {<span class="st">"remove"</span>, [&amp;inventory](<span class="kw">const</span> Args&amp; a) { inventory.<span class="fn">remove</span>(a[0]); }},
+<span class="ln">4</span>     {<span class="st">"list"</span>,   [&amp;inventory](<span class="kw">const</span> Args&amp;)   { inventory.<span class="fn">list</span>(); }},
+<span class="ln">5</span> };
+<span class="ln">6</span> commands.<span class="fn">at</span>(cmd)(args);   <span class="cm">// each entry closes over the same inventory by reference</span></div>
+  <p class="dim">Every handler here captures <code>inventory</code> by reference, so the map itself must not outlive <code>inventory</code> — the same dangling-reference rule from §2 applies per entry.</p>
+
+  <h3 id="s10-stl">10.2 STL Algorithms</h3>
+  <p>This is the most common home for a lambda: a short predicate or transform, written inline, passed straight to an algorithm and never named.</p>
+  <div class="flabel">algorithms.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">auto</span> over = [threshold](<span class="kw">int</span> x) { <span class="kw">return</span> x &gt; threshold; };
+<span class="ln">2</span>
+<span class="ln">3</span>  std::<span class="fn">sort</span>(v.begin(), v.end(), [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a &gt; b; });          <span class="cm">// descending</span>
+<span class="ln">4</span>  <span class="kw">auto</span> it  = std::<span class="fn">find_if</span>(v.begin(), v.end(), over);                             <span class="cm">// first &gt; threshold</span>
+<span class="ln">5</span>  <span class="kw">auto</span> n   = std::<span class="fn">count_if</span>(v.begin(), v.end(), over);                            <span class="cm">// how many &gt; threshold</span>
+<span class="ln">6</span>  std::<span class="fn">transform</span>(v.begin(), v.end(), v.begin(), [](<span class="kw">int</span> x) { <span class="kw">return</span> x * x; }); <span class="cm">// square in place</span>
+<span class="ln">7</span>  <span class="kw">auto</span> sum = std::<span class="fn">accumulate</span>(v.begin(), v.end(), 0,
+<span class="ln">8</span>      [](<span class="kw">int</span> acc, <span class="kw">int</span> x) { <span class="kw">return</span> acc + (x % 2 == 0 ? x : 0); });              <span class="cm">// sum of even elements</span></div>
+  <p class="dim">Every one of these passes the lambda straight into a template parameter, so per §9's insight the compiler sees the concrete closure type and typically inlines through the call — none of this pays the <code>std::function</code> erasure cost.</p>
+
+  <h3 id="s10-observer">10.3 Callback Registries (Observer Pattern)</h3>
+  <p>A class that lets callers register a lambda and invokes all of them later is one of the most common places a lambda ends up stored rather than called immediately.</p>
+  <div class="flabel">observer.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">class</span> <span class="ty">Button</span> {
+<span class="ln">2</span>  <span class="kw">public</span>:
+<span class="ln">3</span>      <span class="kw">void</span> <span class="fn">onClick</span>(std::function&lt;<span class="kw">void</span>()&gt; cb) { handlers.<span class="fn">push_back</span>(std::<span class="fn">move</span>(cb)); }
+<span class="ln">4</span>      <span class="kw">void</span> <span class="fn">click</span>() { <span class="kw">for</span> (<span class="kw">auto</span>&amp; h : handlers) h(); }
+<span class="ln">5</span>  <span class="kw">private</span>:
+<span class="ln">6</span>      std::vector&lt;std::function&lt;<span class="kw">void</span>()&gt;&gt; handlers;
+<span class="ln">7</span>  };
+<span class="ln">8</span>
+<span class="ln">9</span>  <span class="kw">int</span> clicks = 0;
+<span class="ln">10</span> <span class="ty">Button</span> b;
+<span class="ln">11</span> b.<span class="fn">onClick</span>([&amp;clicks] { ++clicks; });
+<span class="ln">12</span> b.<span class="fn">onClick</span>([] { std::cout &lt;&lt; <span class="st">"clicked!\n"</span>; });
+<span class="ln">13</span> b.<span class="fn">click</span>();   <span class="cm">// runs both handlers, in registration order</span></div>
+  <div class="callout trap">
+    <div class="ctitle">⚠ Same Dangling Risk as §2</div>
+    <code>b.onClick([&amp;clicks] { ++clicks; })</code> is only safe as long as <code>clicks</code> outlives <code>b</code> — a <code>std::function</code> member is exactly the "stored callback" scenario the dangling-reference warning in §2 is about.
+  </div>
+
+  <h3 id="s10-curry">10.4 Returning Lambdas / Currying</h3>
+  <p>A lambda's body can return another lambda, which captures whatever the outer lambda's parameters were — a small factory that bakes in one argument and hands back a callable expecting the rest.</p>
+  <div class="flabel">curry.cpp</div>
+  <div class="code-block"><span class="ln">1</span> <span class="kw">auto</span> makeAdder = [](<span class="kw">int</span> base) {
+<span class="ln">2</span>     <span class="kw">return</span> [base](<span class="kw">int</span> x) { <span class="kw">return</span> base + x; };   <span class="cm">// inner lambda captures base BY VALUE</span>
+<span class="ln">3</span> };
+<span class="ln">4</span> <span class="kw">auto</span> add10 = makeAdder(10);
+<span class="ln">5</span> add10(5);   <span class="cm">// 15</span></div>
+  <div class="callout trap">
+    <div class="ctitle">⚠ Capture By Value Here Is Not Optional</div>
+    If the inner lambda captured <code>[&amp;base]</code> instead, it would reference a function parameter that ceases to exist the moment <code>makeAdder</code> returns — the returned closure would dangle on every call, immediately. Whenever a lambda is returned out of the scope that constructed it, its captures must outlive that scope, which almost always means capturing by value.
+  </div>
+  <p class="dim">Because return-type deduction handles the nested lambda automatically (no <code>std::function</code> needed), each call to <code>makeAdder</code> produces its own distinct closure type — <code>add10</code> and a hypothetical <code>add20</code> are technically different types, which is fine as long as both are only ever used via <code>auto</code>.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 11: PITFALLS                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-number">11</div>
     <div class="section-title">Pitfalls &amp; Gotchas</div>
   </div>
   <ul>
@@ -591,11 +715,11 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 10: SELF-TEST                                      -->
+<!--  SECTION 12: SELF-TEST                                      -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s10">
+<div class="section" id="s12">
   <div class="section-header">
-    <div class="section-number">10</div>
+    <div class="section-number">12</div>
     <div class="section-title">Self-Test</div>
   </div>
   <p class="dim">Tap a question to reveal the answer. Try answering in your head first — these are pitched at the level a technical interview would ask.</p>
@@ -637,11 +761,11 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!--  SECTION 11: CHEAT SHEET                                    -->
+<!--  SECTION 13: CHEAT SHEET                                    -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="section" id="s11">
+<div class="section" id="s13">
   <div class="section-header">
-    <div class="section-number">11</div>
+    <div class="section-number">13</div>
     <div class="section-title">Decision Cheat Sheet</div>
   </div>
   <div class="info-grid two">
