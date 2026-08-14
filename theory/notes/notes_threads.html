@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Threads &amp; Concurrency — C++ Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c14;
+    --bg2:       #0f121e;
+    --bg3:       #151a2a;
+    --border:    #232a42;
+    --blue:      #5b8af0;
+    --blue2:     #93b4f7;
+    --blue-dim:  #2a3a70;
+    --pink:      #f472b6;
+    --pink-dim:  #7a2e56;
+    --text:      #dde2f0;
+    --text-dim:  #7680a0;
+    --gold:      #c9a84c;
+    --gold2:     #e8c97a;
+    --green:     #4ade80;
+    --rose:      #fb7185;
+    --sky:       #38bdf8;
+    --teal:      #2dd4bf;
+    --amber:     #fbbf24;
+    --lime:      #a3e635;
+    --violet:    #a78bfa;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.78;
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 2rem 2rem 6rem;
+  }
+
+  .masthead {
+    text-align: center;
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .masthead::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 55% at 50% -5%, #5b8af022, transparent);
+    pointer-events: none;
+  }
+  .masthead .series-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: var(--blue-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.9rem;
+  }
+  .masthead h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--blue2), var(--pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    line-height: 1.25;
+    margin-bottom: 0.6rem;
+  }
+  .masthead .subtitle { color: var(--text-dim); font-size: 1rem; font-style: italic; }
+
+  .toc {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3.5rem;
+  }
+  .toc h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    color: var(--blue);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+  .toc ol { padding-left: 1.4rem; }
+  .toc li { margin: 0.28rem 0; }
+  .toc a { color: var(--text-dim); text-decoration: none; font-size: 0.93rem; transition: color .15s; }
+  .toc a:hover { color: var(--blue2); }
+  .toc .sub { padding-left: 1.2rem; font-size: 0.87rem; list-style-type: disc; }
+
+  .section { margin-bottom: 4.5rem; }
+  .section-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    margin-bottom: 2rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-number { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--blue-dim); min-width: 2.5rem; }
+  .section-title   { font-family: 'Cinzel', serif; font-size: 1.5rem; color: var(--blue2); font-weight: 600; }
+
+  h3 { font-family: 'Cinzel', serif; font-size: 1.02rem; color: var(--text); margin: 2.4rem 0 0.9rem; letter-spacing: 0.05em; font-weight: 600; }
+  h4 { font-size: 1rem; color: var(--blue); margin: 1.5rem 0 0.5rem; font-style: italic; font-weight: 500; }
+
+  p { margin-bottom: 0.85rem; }
+  p.dim { color: var(--text-dim); }
+
+  .fbox {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px; padding: 1.1rem 1.5rem; margin: 1rem 0; overflow-x: auto;
+  }
+  .fbox.gold   { border-left-color: var(--gold); }
+  .fbox.pink   { border-left-color: var(--pink); }
+  .fbox.teal   { border-left-color: var(--teal); }
+  .fbox.green  { border-left-color: var(--green); }
+  .fbox.amber  { border-left-color: var(--amber); }
+
+  .flabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; color: var(--text-dim);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.45rem;
+  }
+
+  .code-block {
+    background: #080a10;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--pink);
+    border-radius: 4px;
+    padding: 1.1rem 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #c8d3e8;
+  }
+  .code-block .kw { color: var(--pink); }
+  .code-block .ty { color: var(--sky); }
+  .code-block .fn { color: var(--amber); }
+  .code-block .cm { color: #5a6a7a; font-style: italic; }
+  .code-block .st { color: var(--lime); }
+  .code-block .nm { color: var(--blue2); }
+  .code-block .op { color: var(--pink); }
+  .code-block .ln { color: #3a4560; display:inline-block; width:1.4em; user-select:none; }
+
+  .callout { border-radius: 4px; padding: 1rem 1.4rem; margin: 1.2rem 0; font-size: 0.95rem; }
+  .callout.tip     { background: #0a1e10; border-left: 3px solid var(--green); }
+  .callout.trap    { background: #1e0a0a; border-left: 3px solid var(--rose); }
+  .callout.insight { background: #140a22; border-left: 3px solid var(--violet); }
+  .callout.example { background: #08101e; border-left: 3px solid var(--sky); }
+  .callout.cpp     { background: #150a1c; border-left: 3px solid var(--pink); }
+  .callout.proof   { background: var(--bg2); border: 1px dashed var(--border); font-style: italic; color: var(--text-dim); }
+
+  .ctitle { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; }
+  .callout.tip     .ctitle { color: var(--green); }
+  .callout.trap    .ctitle { color: var(--rose); }
+  .callout.insight .ctitle { color: var(--violet); }
+  .callout.example .ctitle { color: var(--sky); }
+  .callout.cpp     .ctitle { color: var(--pink); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.91rem; }
+  th { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-dim); padding: 0.6rem 0.8rem; text-align: left; background: var(--bg2); }
+  td { padding: 0.52rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--bg2); }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; display: flex; gap: 1rem; margin: 0.7rem 0; }
+  .steps li::before {
+    content: counter(step);
+    background: var(--blue-dim); color: var(--blue2);
+    font-family: 'Cinzel', serif; font-size: 0.72rem;
+    min-width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 0.15rem;
+  }
+
+  .concept-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.4rem 1.8rem; margin: 1.6rem 0;
+  }
+  .concept-card h4 {
+    font-family: 'Cinzel', serif; font-size: 1.02rem; color: var(--blue2);
+    margin-top: 0; margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;
+    font-style: normal; letter-spacing: 0.05em;
+  }
+
+  .cx-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  .cx-cell {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.7rem 0.8rem;
+    text-align: center;
+  }
+  .cx-cell .cx-name  { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--blue2); display: block; margin-bottom: 0.25rem; letter-spacing: 0.04em; }
+  .cx-cell .cx-big   { font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; color: var(--amber); }
+  .cx-cell .cx-label { font-size: 0.72rem; color: var(--text-dim); display: block; margin-top: 0.15rem; }
+
+  .info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin:1.2rem 0; }
+  .info-grid.two { grid-template-columns:repeat(2,1fr); }
+  .info-card { background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:1.1rem 1.3rem; }
+  .info-card h4 { font-family:'Cinzel',serif; font-size:0.92rem; color:var(--blue2); margin-bottom:0.5rem; font-style:normal; letter-spacing:0.03em; }
+  .info-card p { font-size:0.9rem; color:var(--text-dim); margin:0; }
+
+  .diagram { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 1.6rem; margin: 1.3rem 0; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram .cap { margin-top: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); text-align: center; letter-spacing: 0.03em; }
+
+  /* anatomy strip */
+  .anatomy {
+    display: flex; flex-wrap: wrap; gap: 0; margin: 1.4rem 0;
+    border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; background: #080a10;
+  }
+  .anatomy .part { padding: 1rem 1.1rem; border-right: 1px solid var(--border); position: relative; flex: 1 1 auto; }
+  .anatomy .part:last-child { border-right: none; }
+  .anatomy .part .lbl {
+    display: block; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 0.4rem; font-family: 'JetBrains Mono', monospace;
+  }
+  .anatomy .part code { background: none; border: none; padding: 0; color: var(--text); font-size: 0.95rem; }
+
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.83em; background: var(--bg3); border: 1px solid var(--border); padding: 0.1em 0.4em; border-radius: 3px; color: var(--blue2); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  ul { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ul li { margin: 0.3rem 0; }
+  ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ol li { margin: 0.3rem 0; }
+
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; padding: 1rem 1rem 4rem; }
+    .masthead h1 { font-size: 1.5rem; }
+    .cx-grid { grid-template-columns: repeat(2, 1fr); }
+    .info-grid, .info-grid.two { grid-template-columns: 1fr; }
+    .anatomy { flex-direction: column; }
+    .anatomy .part { border-right: none; border-bottom: 1px solid var(--border); }
+    .anatomy .part:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ MASTHEAD ═══════════ -->
+<div class="masthead">
+  <div class="series-label">Concurrency · C++ Companion</div>
+  <h1>Threads &amp; Concurrency</h1>
+  <div class="subtitle">std::thread, mutexes &amp; condition variables, the memory model, atomics, futures, and the design patterns that hold it together</div>
+</div>
+
+<!-- ═══════════ TOC ═══════════ -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">std::thread Basics</a>
+      <ul class="sub">
+        <li><a href="#s1-args">Passing Arguments</a></li>
+      </ul>
+    </li>
+    <li><a href="#s2">RAII &amp; Thread Lifecycle</a>
+      <ul class="sub">
+        <li><a href="#s2-jthread">std::jthread (C++20)</a></li>
+      </ul>
+    </li>
+    <li><a href="#s3">Data Races &amp; the Memory Model</a></li>
+    <li><a href="#s4">Mutexes &amp; Locking</a>
+      <ul class="sub">
+        <li><a href="#s4-deadlock">Deadlock &amp; Lock Ordering</a></li>
+      </ul>
+    </li>
+    <li><a href="#s5">Condition Variables</a>
+      <ul class="sub">
+        <li><a href="#s5-lost">The Lost Wakeup</a></li>
+      </ul>
+    </li>
+    <li><a href="#s6">Atomics &amp; Memory Order</a>
+      <ul class="sub">
+        <li><a href="#s6-cas">Compare-Exchange &amp; the ABA Problem</a></li>
+      </ul>
+    </li>
+    <li><a href="#s7">Futures, Promises &amp; Async</a></li>
+    <li><a href="#s8">Producer–Consumer &amp; Queues</a></li>
+    <li><a href="#s9">C++20 Additions</a></li>
+    <li><a href="#s10">Concurrency Design Patterns</a></li>
+    <li><a href="#s11">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s12">Self-Test</a></li>
+    <li><a href="#s13">Decision Cheat Sheet</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 1: STD::THREAD BASICS                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <div class="section-title">std::thread Basics</div>
+  </div>
+
+  <p><code>std::thread</code> is a thin RAII-shaped wrapper around a native OS thread (pthread on POSIX, HANDLE on Windows). Constructing one launches it immediately — there is no separate "start" call.</p>
+
+  <div class="flabel">basic_thread.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">void</span> <span class="fn">worker</span>(<span class="kw">int</span> id) {
+<span class="ln">2</span>      std::cout &lt;&lt; <span class="st">"worker "</span> &lt;&lt; id &lt;&lt; <span class="st">" running\n"</span>;
+<span class="ln">3</span>  }
+<span class="ln">4</span>
+<span class="ln">5</span>  std::thread t(worker, 7);   <span class="cm">// starts running immediately, on construction</span>
+<span class="ln">6</span>  <span class="cm">// ... do other work on the calling thread ...</span>
+<span class="ln">7</span>  t.<span class="fn">join</span>();               <span class="cm">// block until t finishes</span></div>
+
+  <p>Every <code>std::thread</code> object is in exactly one of two states with respect to the OS thread it may own: <strong>joinable</strong> or <strong>not joinable</strong>. A default-constructed thread, a moved-from thread, and a thread that has already been <code>join()</code>ed or <code>detach()</code>ed are all not-joinable. <code>t.joinable()</code> answers this directly — checking it before calling <code>join()</code> or <code>detach()</code> avoids the exception both throw when called on a non-joinable thread.</p>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4><code>join()</code></h4>
+      <p>Blocks the calling thread until <code>t</code> finishes. After it returns, <code>t</code> is no longer joinable. The standard, safe default — the calling thread knows exactly when the work is done.</p>
+    </div>
+    <div class="info-card">
+      <h4><code>detach()</code></h4>
+      <p>Severs the <code>std::thread</code> object from the OS thread, which now runs fully independently and cleans itself up on exit. <code>t</code> is no longer joinable, and there is no way to wait on or observe a detached thread again.</p>
+    </div>
+  </div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Neither Join Nor Detach → std::terminate</div>
+    If a <code>std::thread</code> object is still joinable when its destructor runs, the destructor calls <code>std::terminate()</code> — not a clean-ish exception, an immediate abort of the whole process. This is a deliberate design choice: the library refuses to guess whether you meant to wait or abandon the thread, so every code path (including exception-unwinding paths) must explicitly resolve every joinable thread before it goes out of scope.
+  </div>
+
+  <h3 id="s1-args">1.1 Passing Arguments</h3>
+  <p>Arguments to the thread function are copied (or moved) into internal storage owned by the <code>std::thread</code> object, then passed to the invoked function as rvalues. This has a sharp, well-known consequence for reference parameters.</p>
+
+  <div class="flabel">reference_args.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">void</span> <span class="fn">increment</span>(<span class="kw">int</span>&amp; x) { ++x; }
+<span class="ln">2</span>
+<span class="ln">3</span>  <span class="kw">int</span> counter = 0;
+<span class="ln">4</span>  std::thread t(increment, counter);          <span class="cm">// WON'T COMPILE — copies counter into storage,</span>
+<span class="ln">5</span>                                               <span class="cm">// then tries to bind int&amp; to an rvalue int</span>
+<span class="ln">6</span>  std::thread t2(increment, std::ref(counter)); <span class="cm">// correct — std::ref wraps a real reference</span>
+<span class="ln">7</span>  t2.<span class="fn">join</span>();
+<span class="ln">8</span>  <span class="cm">// counter is now 1</span></div>
+
+  <div class="callout tip">
+    <div class="ctitle">💡 std::ref / std::cref</div>
+    <code>std::ref(x)</code> produces a <code>std::reference_wrapper&lt;T&gt;</code> — a small copyable object that behaves like a reference for the purposes of argument deduction. It's the standard way to make a thread (or <code>std::bind</code>, or <code>std::async</code>) target a reference parameter without accidentally decaying to a by-value copy.
+  </div>
+
+  <p class="dim">Move-only arguments (a <code>std::unique_ptr&lt;T&gt;</code>, for instance) transfer cleanly: <code>std::thread t(worker, std::move(ptr))</code> moves ownership into the thread's internal storage, and the worker function receives it by value or by rvalue reference.</p>
+
+  <h4>Thread Identity &amp; Hardware Concurrency</h4>
+  <p><code>t.get_id()</code> returns a <code>std::thread::id</code> — an opaque, totally-ordered, hashable value usable as a map key or for logging, but with no arithmetic meaning. <code>std::this_thread::get_id()</code> gets the calling thread's own id. <code>std::thread::hardware_concurrency()</code> returns a hint (0 if unknown) at how many threads can genuinely run in parallel — commonly used to size a thread pool, though it's advice, not a guarantee.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 2: RAII & THREAD LIFECYCLE                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <div class="section-title">RAII &amp; Thread Lifecycle</div>
+  </div>
+
+  <p>Because a joinable thread left dangling terminates the process, and because exceptions can unwind past a <code>join()</code> call before it runs, threads are a textbook case for RAII: wrap the thread in a small guard object whose destructor resolves it unconditionally.</p>
+
+  <div class="flabel">thread_guard.hpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">class</span> <span class="ty">ThreadGuard</span> {
+<span class="ln">2</span>  <span class="kw">public</span>:
+<span class="ln">3</span>      <span class="kw">explicit</span> <span class="fn">ThreadGuard</span>(std::thread t) : t_(std::<span class="fn">move</span>(t)) {}
+<span class="ln">4</span>
+<span class="ln">5</span>      ~<span class="fn">ThreadGuard</span>() {
+<span class="ln">6</span>          <span class="kw">if</span> (t_.<span class="fn">joinable</span>()) t_.<span class="fn">join</span>();
+<span class="ln">7</span>      }
+<span class="ln">8</span>
+<span class="ln">9</span>      <span class="ty">ThreadGuard</span>(<span class="kw">const</span> <span class="ty">ThreadGuard</span>&amp;) = <span class="kw">delete</span>;
+<span class="ln">10</span>     <span class="ty">ThreadGuard</span>&amp; <span class="kw">operator</span>=(<span class="kw">const</span> <span class="ty">ThreadGuard</span>&amp;) = <span class="kw">delete</span>;
+<span class="ln">11</span>     <span class="ty">ThreadGuard</span>(<span class="ty">ThreadGuard</span>&amp;&amp;) = <span class="kw">default</span>;
+<span class="ln">12</span>     <span class="ty">ThreadGuard</span>&amp; <span class="kw">operator</span>=(<span class="ty">ThreadGuard</span>&amp;&amp;) = <span class="kw">default</span>;
+<span class="ln">13</span>
+<span class="ln">14</span> <span class="kw">private</span>:
+<span class="ln">15</span>     std::thread t_;
+<span class="ln">16</span> };</div>
+
+  <p>Copying is deleted for the same reason it's deleted on <code>std::thread</code> itself — a thread of execution has exactly one owner, so the type is move-only. Wrapping it in a vector needs <code>std::vector&lt;ThreadGuard&gt;</code> (works fine, since the type is movable) or a vector of <code>std::unique_ptr&lt;ThreadGuard&gt;</code> if the guard itself must stay pinned in memory.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◈ Destructor Order Is Reverse-Declaration Order</div>
+    A vector of <code>ThreadGuard</code> destroys elements in order — but a hand-rolled worker pool with several distinct guard members destroys them in <em>reverse declaration order</em>, same as any other class. If a shutdown sequence needs threads joined in a specific order (e.g. producers before consumers), that ordering has to be either explicit in a dedicated <code>shutdown()</code> method, or encoded directly in the members' declaration order — relying on implicit destructor order for correctness is fragile and easy to break with an innocuous reordering.
+  </div>
+
+  <h3>2.1 Shutdown Ordering</h3>
+  <p>In any multi-thread system with a natural producer→consumer direction, a clean shutdown is a protocol, not a single call. The typical sequence:</p>
+  <ol class="steps">
+    <li>Stop producing new work (close the input, signal "no more items coming").</li>
+    <li>Wake anything blocked waiting for work (a condition variable notify, or a poison-pill value pushed onto a queue).</li>
+    <li>Join upstream/producer threads first, so no thread downstream can receive work from a thread that's already gone.</li>
+    <li>Join downstream/consumer threads once producers are confirmed done and queues are drained.</li>
+  </ol>
+  <div class="callout trap">
+    <div class="ctitle">⚠ Joining Out of Order Can Deadlock</div>
+    Joining a consumer before its producer has stopped (and drained) risks the consumer blocking forever on an empty queue that will never receive more data, while the producer thread — still running — is never given the chance to finish and signal completion. The join direction should mirror the data-flow direction: stop the source, then join downstream in flow order.
+  </div>
+
+  <h3 id="s2-jthread">2.2 std::jthread (C++20)</h3>
+  <p><code>std::jthread</code> is a drop-in upgrade over <code>std::thread</code> that fixes the most common footgun directly in the type: its destructor automatically requests a stop and joins if still joinable, so a <code>jthread</code> going out of scope never terminates the process.</p>
+
+  <div class="flabel">jthread_basic.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">void</span> <span class="fn">loop</span>(std::stop_token tok) {
+<span class="ln">2</span>      <span class="kw">while</span> (!tok.<span class="fn">stop_requested</span>()) {
+<span class="ln">3</span>          <span class="cm">// ... do work in small increments ...</span>
+<span class="ln">4</span>      }
+<span class="ln">5</span>  }
+<span class="ln">6</span>
+<span class="ln">7</span>  {
+<span class="ln">8</span>      std::jthread jt(loop);
+<span class="ln">9</span>  } <span class="cm">// scope exit: destructor calls request_stop() then join() — no manual cleanup needed</span></div>
+
+  <p>If the target function's first parameter is a <code>std::stop_token</code>, <code>jthread</code> passes one in automatically, letting the function poll <code>stop_requested()</code> cooperatively. This replaces the common hand-rolled pattern of an <code>std::atomic&lt;bool&gt; stop_flag</code> shared between the launching code and the worker.</p>
+  <p class="dim"><code>jthread</code> is still cooperative cancellation, not preemptive — a worker that never checks <code>stop_token</code> (e.g. it's blocked on a long condition-variable wait without a predicate, or a blocking I/O call) won't actually stop just because a stop was requested. <code>std::stop_token</code> composes with <code>condition_variable_any::wait</code>, which can wake early on a stop request.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 3: DATA RACES & THE MEMORY MODEL                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <div class="section-title">Data Races &amp; the Memory Model</div>
+  </div>
+
+  <p>A <strong>data race</strong> has a precise definition in the C++ standard: two or more threads access the same memory location concurrently, at least one access is a write, and the accesses are not synchronized with each other. A data race is undefined behavior — not "probably wrong," but licenses the compiler and hardware to do anything, including things that look impossible when reading the source (a variable appearing to have a value it was never assigned, or a loop that never observes a flag change and spins forever because it was hoisted out of the loop entirely).</p>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Race Condition vs. Data Race</div>
+    These terms are often used interchangeably but aren't the same thing. A <strong>race condition</strong> is a broader, language-agnostic term for any outcome that depends on the relative timing of events — it can exist even with perfect synchronization (e.g. two properly-locked threads racing to be "first" to insert a key, where either outcome is a legal, defined result). A <strong>data race</strong> is the specific, C++-standard, UB-triggering case of unsynchronized concurrent access to the same memory. Every data race is a bug; not every race condition is.
+  </div>
+
+  <h3>3.1 Sequenced-Before and Happens-Before</h3>
+  <p>Two relations underpin the whole model. <strong>Sequenced-before</strong> is the single-threaded ordering — statement A is sequenced-before statement B if A is required to complete before B begins, per ordinary program order and evaluation rules. <strong>Happens-before</strong> extends this across threads: it's built from sequenced-before plus <em>synchronizes-with</em> edges, which are created by specific synchronization operations (unlocking a mutex that another thread later locks, or a release-store paired with an acquire-load on the same atomic).</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="10" y="24" fill="#7680a0" font-family="JetBrains Mono" font-size="11">THREAD A</text>
+      <rect x="10" y="34" width="330" height="180" fill="none" stroke="#4a5570" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="30" y="65" fill="#dde2f0" font-family="JetBrains Mono" font-size="12">data = 42;</text>
+      <text x="30" y="95" fill="#4ade80" font-family="JetBrains Mono" font-size="12">ready.store(true, release);</text>
+      <text x="30" y="130" fill="#7680a0" font-family="JetBrains Mono" font-size="10">sequenced-before ↑ (program order)</text>
+
+      <text x="470" y="24" fill="#7680a0" font-family="JetBrains Mono" font-size="11">THREAD B</text>
+      <rect x="470" y="34" width="340" height="180" fill="none" stroke="#4a5570" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="490" y="65" fill="#38bdf8" font-family="JetBrains Mono" font-size="12">while (!ready.load(acquire));</text>
+      <text x="490" y="95" fill="#dde2f0" font-family="JetBrains Mono" font-size="12">use(data);   // guaranteed to see 42</text>
+
+      <line x1="230" y1="90" x2="600" y2="60" stroke="#4ade80" stroke-width="1.4"/>
+      <text x="330" y="170" fill="#a78bfa" font-family="JetBrains Mono" font-size="11">synchronizes-with (release ⇄ acquire on `ready`)</text>
+      <text x="180" y="240" fill="#7680a0" font-family="JetBrains Mono" font-size="10.5">happens-before(data=42, use(data)) = seq-before + sync-with, transitively</text>
+    </svg>
+    <div class="cap">FIG 1 — a release/acquire pair on `ready` is what makes the write to `data` visible to thread B</div>
+  </div>
+
+  <p>This is the load-bearing guarantee behind every synchronization primitive in the standard library: a mutex unlock synchronizes-with the next lock of the same mutex, a thread's completion synchronizes-with the <code>join()</code> that observes it, and a condition-variable notify synchronizes-with the wait it wakes (once the predicate is re-checked under the lock). Without one of these established relationships, the compiler and CPU are both free to reorder, and there is no guarantee thread B ever observes thread A's writes at all — not "might see a stale value," but no defined ordering exists between the two accesses.</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◈ Why Just "volatile" Doesn't Fix It</div>
+    <code>volatile</code> in C++ only tells the compiler not to elide or reorder accesses to that specific variable relative to other <code>volatile</code> accesses — it has no defined interaction with the C++ memory model, provides no atomicity, and generates no memory fences. It's the right tool for memory-mapped hardware registers and signal handlers, and the wrong tool for inter-thread communication; that's what <code>std::atomic</code> is for.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 4: MUTEXES & LOCKING                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <div class="section-title">Mutexes &amp; Locking</div>
+  </div>
+
+  <p>A mutex (mutual exclusion) guarantees that only one thread at a time can hold the lock guarding a critical section. The standard library provides several flavors and, more importantly, several RAII wrappers so a mutex is never left locked by an early return, a thrown exception, or a forgotten unlock.</p>
+
+  <table>
+    <tr><th>Type</th><th>Behavior</th></tr>
+    <tr><td><code>std::mutex</code></td><td>Basic non-recursive, non-timed mutex. Locking it again on the same thread that already holds it is undefined behavior (typically deadlock).</td></tr>
+    <tr><td><code>std::recursive_mutex</code></td><td>Same thread may lock it multiple times; must unlock the same number of times. Usually a sign of a design that could be refactored — genuinely necessary in some reentrant call chains.</td></tr>
+    <tr><td><code>std::timed_mutex</code></td><td>Adds <code>try_lock_for</code> / <code>try_lock_until</code> — attempt to acquire, give up after a duration or deadline instead of blocking forever.</td></tr>
+    <tr><td><code>std::shared_mutex</code> (C++17)</td><td>Readers-writer lock: any number of concurrent shared (read) locks, or one exclusive (write) lock, never both. Use with <code>std::shared_lock</code> for readers.</td></tr>
+  </table>
+
+  <h3>4.1 RAII Lock Wrappers</h3>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4><code>std::lock_guard&lt;M&gt;</code></h4>
+      <p>Minimal — locks on construction, unlocks on destruction. No unlock-and-relock, no ownership transfer, no default constructor. The lightest-weight choice when the lock is held for the guard's entire scope.</p>
+    </div>
+    <div class="info-card">
+      <h4><code>std::unique_lock&lt;M&gt;</code></h4>
+      <p>Everything <code>lock_guard</code> does, plus: deferred locking, manual <code>lock()</code>/<code>unlock()</code> mid-scope, movable ownership, and — critically — it's the type <code>std::condition_variable::wait</code> requires, since waiting must be able to unlock and later re-lock.</p>
+    </div>
+  </div>
+
+  <div class="flabel">raii_locking.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::mutex m;
+<span class="ln">2</span>  <span class="kw">int</span> shared_counter = 0;
+<span class="ln">3</span>
+<span class="ln">4</span>  <span class="kw">void</span> <span class="fn">increment</span>() {
+<span class="ln">5</span>      std::lock_guard&lt;std::mutex&gt; lock(m);   <span class="cm">// locked here</span>
+<span class="ln">6</span>      ++shared_counter;
+<span class="ln">7</span>  }   <span class="cm">// unlocked here, even if an exception was thrown above</span></div>
+
+  <div class="callout tip">
+    <div class="ctitle">💡 std::scoped_lock (C++17) for Multiple Mutexes</div>
+    <code>std::scoped_lock lk(m1, m2, m3);</code> locks all of them together using a deadlock-avoidance algorithm internally (equivalent to <code>std::lock</code>), instead of locking them one at a time in a fixed order that could interleave badly with another thread locking the same set in reverse order. Prefer it any time a single critical section needs more than one mutex held simultaneously.
+  </div>
+
+  <h3 id="s4-deadlock">4.2 Deadlock &amp; Lock Ordering</h3>
+  <p>The classic deadlock: thread A holds mutex 1 and waits for mutex 2; thread B holds mutex 2 and waits for mutex 1. Neither ever proceeds. This is one instance of the more general <strong>four Coffman conditions</strong> for deadlock — mutual exclusion, hold-and-wait, no preemption, and circular wait — and breaking any one of the four prevents it.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="180" cy="110" r="55" fill="#151a2a" stroke="#5b8af0" stroke-width="1.4"/>
+      <text x="180" y="105" fill="#93b4f7" font-family="JetBrains Mono" font-size="13" text-anchor="middle">Thread A</text>
+      <text x="180" y="122" fill="#7680a0" font-family="JetBrains Mono" font-size="10" text-anchor="middle">holds m1</text>
+
+      <circle cx="520" cy="110" r="55" fill="#151a2a" stroke="#f472b6" stroke-width="1.4"/>
+      <text x="520" y="105" fill="#f472b6" font-family="JetBrains Mono" font-size="13" text-anchor="middle">Thread B</text>
+      <text x="520" y="122" fill="#7680a0" font-family="JetBrains Mono" font-size="10" text-anchor="middle">holds m2</text>
+
+      <line x1="235" y1="95" x2="465" y2="95" stroke="#fb7185" stroke-width="1.6" marker-end="url(#arr1)"/>
+      <text x="350" y="82" fill="#fb7185" font-family="JetBrains Mono" font-size="10.5" text-anchor="middle">waits for m2</text>
+
+      <line x1="465" y1="130" x2="235" y2="130" stroke="#fb7185" stroke-width="1.6" marker-end="url(#arr2)"/>
+      <text x="350" y="152" fill="#fb7185" font-family="JetBrains Mono" font-size="10.5" text-anchor="middle">waits for m1</text>
+
+      <defs>
+        <marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#fb7185"/></marker>
+        <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#fb7185"/></marker>
+      </defs>
+      <text x="350" y="200" fill="#7680a0" font-family="JetBrains Mono" font-size="11" text-anchor="middle">circular wait — neither thread can ever release what the other needs</text>
+    </svg>
+    <div class="cap">FIG 2 — classic two-mutex deadlock: reverse lock order between two threads</div>
+  </div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Fixes for Lock-Order Deadlock</div>
+    Three standard escapes: (1) always acquire multiple mutexes in the same global order across every thread, e.g. by address or by an assigned rank; (2) use <code>std::lock</code> / <code>std::scoped_lock</code> to acquire several mutexes atomically as a set; (3) avoid holding more than one lock at a time in the first place — often achievable by narrowing critical sections or by copying data out under one lock before touching a second resource.
+  </div>
+
+  <p class="dim">A single mutex can also self-deadlock: a non-recursive <code>std::mutex</code> locked twice by the same thread (e.g. a public method that locks, then calls a private helper that locks again) blocks forever, since the thread is waiting on a lock it itself already holds and cannot release until it acquires the very lock it's waiting for.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 5: CONDITION VARIABLES                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <div class="section-title">Condition Variables</div>
+  </div>
+
+  <p>A mutex alone can only protect data — it can't make a thread wait efficiently for a <em>condition</em> to become true. Busy-polling a flag under a lock burns CPU and adds lock contention; <code>std::condition_variable</code> lets a thread sleep until another thread explicitly wakes it.</p>
+
+  <div class="flabel">condvar_basic.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::mutex m;
+<span class="ln">2</span>  std::condition_variable cv;
+<span class="ln">3</span>  <span class="kw">bool</span> ready = <span class="kw">false</span>;
+<span class="ln">4</span>
+<span class="ln">5</span>  <span class="cm">// waiting side</span>
+<span class="ln">6</span>  std::unique_lock&lt;std::mutex&gt; lock(m);
+<span class="ln">7</span>  cv.<span class="fn">wait</span>(lock, [] { <span class="kw">return</span> ready; });   <span class="cm">// predicate form — the safe default</span>
+<span class="ln">8</span>  <span class="cm">// ready == true here, and lock is held again</span>
+<span class="ln">9</span>
+<span class="ln">10</span> <span class="cm">// notifying side</span>
+<span class="ln">11</span> { std::lock_guard&lt;std::mutex&gt; lg(m); ready = <span class="kw">true</span>; }
+<span class="ln">12</span> cv.<span class="fn">notify_one</span>();</div>
+
+  <p>The predicate-taking overload of <code>wait</code> is equivalent to <code>while (!pred()) wait(lock);</code> — it re-checks the condition in a loop, re-acquiring the lock each time it wakes, until the predicate holds. This single call handles two separate real problems at once.</p>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Spurious Wakeups</h4>
+      <p>The standard permits a waiting thread to wake up even though no one called <code>notify</code> — an artifact of how condition variables are implemented on top of OS primitives. A bare <code>wait(lock)</code> with no predicate must always be wrapped in a loop that re-checks the actual condition; the predicate overload does this automatically.</p>
+    </div>
+    <div class="info-card">
+      <h4 id="s5-lost">The Lost Wakeup</h4>
+      <p>If the notifying thread sets <code>ready = true</code> and calls <code>notify_one()</code> <em>before</em> the waiter has started waiting, and the waiter isn't re-checking the flag on entry, the notification is missed entirely and the waiter can block forever. The predicate form fixes this too — it checks <code>pred()</code> before ever blocking, so a notification that "arrived early" is still observed.</p>
+    </div>
+  </div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Always Modify the Predicate State Under the Same Mutex</div>
+    The flag or queue state that the predicate reads must be modified while holding the exact mutex passed to <code>wait</code> — otherwise there's a data race between the notifier writing <code>ready</code> and the waiter's predicate reading it, independent of whatever the condition variable itself does. The condition variable coordinates <em>when to re-check</em>; the mutex is what makes the check itself race-free.
+  </div>
+
+  <h3>5.1 notify_one vs. notify_all</h3>
+  <table>
+    <tr><th>Call</th><th>Wakes</th><th>Typical use</th></tr>
+    <tr><td><code>notify_one()</code></td><td>At most one waiting thread (which one is unspecified).</td><td>One unit of work became available for exactly one consumer — e.g. one item pushed to a work queue.</td></tr>
+    <tr><td><code>notify_all()</code></td><td>Every currently-waiting thread.</td><td>A state change every waiter needs to re-evaluate — most importantly, shutdown: every worker must wake up and observe "stop requested," not just one of them.</td></tr>
+  </table>
+  <p class="dim">It's always safe to use <code>notify_all()</code> where <code>notify_one()</code> would suffice — the woken threads that find the predicate still false simply go back to sleep — it's only a (usually minor) efficiency cost, not a correctness one. The reverse — using <code>notify_one()</code> when the situation actually needs every waiter awake, such as shutdown — is a correctness bug.</p>
+
+  <h3>5.2 condition_variable_any</h3>
+  <p><code>std::condition_variable</code> only works with <code>std::unique_lock&lt;std::mutex&gt;</code>. <code>std::condition_variable_any</code> is the more general (and slightly more expensive) version that works with any lockable type, including <code>std::shared_lock</code> — and, since C++20, it's the version that composes with a <code>std::stop_token</code> to support waking early on a cooperative-cancellation request.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 6: ATOMICS & MEMORY ORDER                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <div class="section-title">Atomics &amp; Memory Order</div>
+  </div>
+
+  <p><code>std::atomic&lt;T&gt;</code> gives a variable two guarantees a plain variable doesn't have: every operation on it is indivisible (no thread ever observes a "half-written" value), and each operation can be tagged with a <strong>memory order</strong> that controls what reordering is and isn't allowed around it. For small trivially-copyable types (bool, integers, pointers) most platforms implement this without any locking at all — <code>is_lock_free()</code> reports whether that's true for a given specialization.</p>
+
+  <div class="flabel">atomic_flag.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::atomic&lt;<span class="kw">bool</span>&gt; done{<span class="kw">false</span>};
+<span class="ln">2</span>
+<span class="ln">3</span>  <span class="cm">// worker thread</span>
+<span class="ln">4</span>  <span class="kw">while</span> (!done.<span class="fn">load</span>()) { <span class="cm">// do work chunk</span> }
+<span class="ln">5</span>
+<span class="ln">6</span>  <span class="cm">// controller thread</span>
+<span class="ln">7</span>  done.<span class="fn">store</span>(<span class="kw">true</span>);</div>
+
+  <div class="callout tip">
+    <div class="ctitle">💡 std::atomic vs. std::mutex</div>
+    An atomic is the right tool for a single flag, counter, or pointer where the only operations needed are load/store/increment/CAS. A mutex is the right tool the moment more than one related piece of state must change together consistently — atomics don't compose: making two separate atomics individually thread-safe does not make the pair of them consistent with each other.
+  </div>
+
+  <h3>6.1 Memory Orders</h3>
+  <p>Every atomic operation takes an optional <code>std::memory_order</code> argument (default <code>seq_cst</code>). This is the part of the language most often quoted incorrectly in interviews, so the precise roles:</p>
+
+  <table>
+    <tr><th>Order</th><th>Applies to</th><th>Guarantee</th></tr>
+    <tr><td><code>relaxed</code></td><td>load, store, RMW</td><td>Atomicity only — no ordering guarantee relative to other memory operations on other variables. Use for independent counters (e.g. a stats/drop counter) where only the final total matters, never as a synchronization signal.</td></tr>
+    <tr><td><code>release</code></td><td>store</td><td>No read/write in this thread, before the store, may be reordered <em>after</em> it. Publishes prior writes to whichever thread later does a matching <code>acquire</code> load.</td></tr>
+    <tr><td><code>acquire</code></td><td>load</td><td>No read/write in this thread, after the load, may be reordered <em>before</em> it. Makes the writes that preceded a matching <code>release</code> store visible.</td></tr>
+    <tr><td><code>acq_rel</code></td><td>read-modify-write</td><td>Acquire on the read part, release on the write part — the standard choice for an RMW op (e.g. <code>fetch_add</code>) that both consumes and publishes state.</td></tr>
+    <tr><td><code>seq_cst</code></td><td>all ops (default)</td><td>Everything <code>acquire</code>/<code>release</code> give, plus a single global total order that every thread agrees on for all <code>seq_cst</code> operations. The safest default; also the most expensive on some architectures.</td></tr>
+  </table>
+
+  <div class="callout insight">
+    <div class="ctitle">◈ The release/acquire "Handshake" Pattern</div>
+    The pattern in Section 3's diagram — one thread does <code>flag.store(true, release)</code> after writing shared data, another does <code>while (!flag.load(acquire));</code> before reading it — is the single most common correct use of non-default memory orders. It's cheaper than <code>seq_cst</code> on architectures with weaker native memory models (ARM in particular) while still being fully race-free, because the release/acquire pairing on the same atomic establishes the happens-before edge that makes the data write visible.
+  </div>
+
+  <h3 id="s6-cas">6.2 Compare-Exchange &amp; the ABA Problem</h3>
+  <p><code>compare_exchange_weak</code> / <code>compare_exchange_strong</code> are the building blocks of lock-free algorithms: "if the atomic still holds the value I last read, replace it with a new value; otherwise, tell me what it actually holds now." The <em>weak</em> version may fail spuriously even when the comparison would have succeeded (cheaper on some platforms, e.g. LL/SC architectures) and is meant to be used in a retry loop; the <em>strong</em> version never fails spuriously and is the right choice outside a loop.</p>
+
+  <div class="flabel">cas_increment.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::atomic&lt;<span class="kw">int</span>&gt; counter{0};
+<span class="ln">2</span>
+<span class="ln">3</span>  <span class="kw">int</span> old_val = counter.<span class="fn">load</span>(std::memory_order_relaxed);
+<span class="ln">4</span>  <span class="kw">int</span> new_val;
+<span class="ln">5</span>  <span class="kw">do</span> {
+<span class="ln">6</span>      new_val = old_val + 1;
+<span class="ln">7</span>  } <span class="kw">while</span> (!counter.<span class="fn">compare_exchange_weak</span>(old_val, new_val));
+<span class="ln">8</span>  <span class="cm">// on failure, old_val is updated to the current value automatically — loop retries</span></div>
+
+  <p>The <strong>ABA problem</strong>: a compare-exchange only checks that the value is bitwise-equal to what was last read — it can't tell the difference between "nothing changed" and "it changed away from A, to something else, and back to A again" between the read and the CAS. For a plain counter this is harmless. For a pointer-based structure (e.g. a lock-free stack's head pointer), a node can be popped, freed, and a new node reallocated at the exact same address, making a stale CAS succeed against a completely different logical state — a classic source of subtle lock-free-data-structure corruption. Standard mitigations: tagged pointers (pack a version counter alongside the pointer bits) or hazard pointers / epoch-based reclamation to prevent premature reuse of freed memory.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 7: FUTURES, PROMISES & ASYNC                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-number">7</div>
+    <div class="section-title">Futures, Promises &amp; Async</div>
+  </div>
+
+  <p>Threads plus mutexes plus condition variables can express any concurrent computation, but for the common case of "run this, and give me the result later," the standard library offers a higher-level, result-carrying abstraction that avoids hand-rolling the wait/notify plumbing.</p>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4><code>std::promise&lt;T&gt;</code></h4>
+      <p>The write side. One thread calls <code>set_value(x)</code> (or <code>set_exception(...)</code>) exactly once. Internally synchronizes with whoever holds the paired future.</p>
+    </div>
+    <div class="info-card">
+      <h4><code>std::future&lt;T&gt;</code></h4>
+      <p>The read side. <code>get()</code> blocks until the value is ready, then returns it — and may only be called once, since it moves the result out.</p>
+    </div>
+  </div>
+
+  <div class="flabel">promise_future.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::promise&lt;<span class="kw">int</span>&gt; p;
+<span class="ln">2</span>  std::future&lt;<span class="kw">int</span>&gt; fut = p.<span class="fn">get_future</span>();
+<span class="ln">3</span>
+<span class="ln">4</span>  std::thread producer([&amp;p] {
+<span class="ln">5</span>      <span class="kw">int</span> result = <span class="fn">expensive_computation</span>();
+<span class="ln">6</span>      p.<span class="fn">set_value</span>(result);
+<span class="ln">7</span>  });
+<span class="ln">8</span>
+<span class="ln">9</span>  <span class="kw">int</span> value = fut.<span class="fn">get</span>();   <span class="cm">// blocks until set_value() runs</span>
+<span class="ln">10</span> producer.<span class="fn">join</span>();</div>
+
+  <h3>7.1 std::async</h3>
+  <p><code>std::async(policy, fn, args...)</code> packages "run this function, possibly on another thread, and give me a future for the result" into one call, skipping the manual promise/thread wiring.</p>
+
+  <table>
+    <tr><th>Launch policy</th><th>Behavior</th></tr>
+    <tr><td><code>std::launch::async</code></td><td>Runs on a new thread, guaranteed. Equivalent in spirit to <code>std::thread</code> + <code>std::promise</code>, but with automatic result plumbing.</td></tr>
+    <tr><td><code>std::launch::deferred</code></td><td>Not run at all until <code>.get()</code> or <code>.wait()</code> is called — then runs synchronously on the calling thread, lazily.</td></tr>
+    <tr><td><code>async | deferred</code> (default)</td><td>Implementation's choice between the two — commonly a thread-pool-backed decision. This ambiguity is exactly why the explicit policy is usually preferred in code where "does this run concurrently" actually matters.</td></tr>
+  </table>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ A future's Destructor Can Block</div>
+    The future returned by <code>std::async</code> with the default (or <code>async</code>) policy has a special property: if it's the <em>last</em> future referring to that shared state and it's destroyed without <code>get()</code> or <code>wait()</code> ever having been called, its destructor blocks until the async task completes — effectively an implicit join. An unnamed temporary, <code>std::async(...)</code> as a bare statement with no variable to hold the future, is therefore fully synchronous in practice: the temporary future is destroyed at the end of the full expression, which blocks immediately. (A future obtained from a <code>std::promise</code> directly does not have this blocking-destructor behavior.)
+  </div>
+
+  <h3>7.2 std::packaged_task &amp; shared_future</h3>
+  <p><code>std::packaged_task&lt;Sig&gt;</code> wraps a callable so that its result is delivered through a future, without the caller having to manage a <code>std::promise</code> by hand — useful for handing work items into a custom thread pool's queue, since the task itself is a single movable callable that can be stored in a queue of <code>std::function&lt;void()&gt;</code>-like wrappers.</p>
+  <p class="dim"><code>std::future&lt;T&gt;::get()</code> can only be called once (it moves the result out and invalidates the future). <code>std::shared_future&lt;T&gt;</code>, obtained via <code>fut.share()</code>, is copyable and allows multiple threads to each call <code>.get()</code> independently — the standard choice when more than one consumer needs to observe the same result.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 8: PRODUCER–CONSUMER & QUEUES                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-number">8</div>
+    <div class="section-title">Producer–Consumer &amp; Queues</div>
+  </div>
+
+  <p>The producer–consumer pattern — one or more threads generating items, one or more threads processing them, decoupled by a queue — is the backbone of most real concurrent systems: pipelines, event loops, work-stealing pools, logging systems. The queue is the single piece of shared state, so its thread-safety design is the whole ballgame.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 780 200" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="70" width="140" height="60" rx="6" fill="#151a2a" stroke="#5b8af0" stroke-width="1.2"/>
+      <text x="80" y="105" fill="#93b4f7" font-family="JetBrains Mono" font-size="13" text-anchor="middle">Producer</text>
+
+      <rect x="230" y="55" width="320" height="90" rx="6" fill="#0f121e" stroke="#f472b6" stroke-width="1.4"/>
+      <text x="390" y="80" fill="#f472b6" font-family="JetBrains Mono" font-size="11" text-anchor="middle">BOUNDED QUEUE</text>
+      <rect x="250" y="95" width="36" height="30" fill="#232a42"/><rect x="290" y="95" width="36" height="30" fill="#232a42"/>
+      <rect x="330" y="95" width="36" height="30" fill="#232a42"/><rect x="370" y="95" width="36" height="30" fill="none" stroke="#3a4560" stroke-dasharray="2 2"/>
+      <rect x="410" y="95" width="36" height="30" fill="none" stroke="#3a4560" stroke-dasharray="2 2"/>
+      <text x="390" y="140" fill="#7680a0" font-family="JetBrains Mono" font-size="10" text-anchor="middle">capacity N — mutex+cv or lock-free ring</text>
+
+      <rect x="630" y="70" width="140" height="60" rx="6" fill="#151a2a" stroke="#38bdf8" stroke-width="1.2"/>
+      <text x="700" y="105" fill="#38bdf8" font-family="JetBrains Mono" font-size="13" text-anchor="middle">Consumer</text>
+
+      <line x1="150" y1="100" x2="228" y2="100" stroke="#5b8af0" stroke-width="1.4" marker-end="url(#a8)"/>
+      <line x1="552" y1="100" x2="628" y2="100" stroke="#38bdf8" stroke-width="1.4" marker-end="url(#a9)"/>
+      <defs>
+        <marker id="a8" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b8af0"/></marker>
+        <marker id="a9" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#38bdf8"/></marker>
+      </defs>
+      <text x="80" y="150" fill="#7680a0" font-family="JetBrains Mono" font-size="10" text-anchor="middle">push (blocks / drops if full)</text>
+      <text x="700" y="150" fill="#7680a0" font-family="JetBrains Mono" font-size="10" text-anchor="middle">pop (blocks if empty)</text>
+    </svg>
+    <div class="cap">FIG 3 — a bounded queue decouples producer and consumer rates and is the one piece of shared state to get right</div>
+  </div>
+
+  <h3>8.1 SPSC vs. MPSC vs. MPMC</h3>
+  <p>The number of concurrent producers and consumers changes what a queue needs to guarantee, and cheaper implementations exist for narrower cases.</p>
+  <table>
+    <tr><th>Shape</th><th>Meaning</th><th>Typical implementation</th></tr>
+    <tr><td>SPSC</td><td>Single-producer, single-consumer</td><td>A fixed-size ring buffer with two atomic indices (head owned by consumer, tail owned by producer) can be entirely lock-free — each side only ever writes its own index and reads the other's.</td></tr>
+    <tr><td>MPSC</td><td>Multi-producer, single-consumer</td><td>Producers now contend with each other on the tail index — needs either a mutex around the push, or a lock-free MPSC-specific algorithm (e.g. an intrusive linked-list queue with atomic CAS on the tail pointer).</td></tr>
+    <tr><td>MPMC</td><td>Multi-producer, multi-consumer</td><td>Both ends contend. Usually simplest and often fast enough as a mutex + condition_variable bounded queue; genuinely lock-free MPMC queues are substantially more complex to get correct.</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="ctitle">💡 Why Reach for Several SPSC Queues Instead of One Shared Queue</div>
+    When work can be partitioned up front (e.g. sharded by some key so each item always belongs to exactly one consumer), giving each consumer its own dedicated SPSC queue avoids all cross-producer contention on a single shared structure, keeps each queue's implementation as simple and cheap as an SPSC ring buffer allows, and sidesteps the fairness question a single MPMC queue raises (which consumer gets the next item). The tradeoff is that a component wanting to know "is any queue non-empty" now has to check N queues, or be woken via a mechanism that can wake across many queues rather than waiting on a single one.
+  </div>
+
+  <h3>8.2 Backpressure</h3>
+  <p>An unbounded queue can absorb any producer/consumer rate mismatch — right up until it exhausts memory. A bounded queue forces an explicit decision about what happens when it's full, which is a design choice, not an incidental detail:</p>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Blocking push</h4>
+      <p>The producer waits (condition-variable style) until space frees up. Preserves every item but couples the producer's throughput to the consumer's — a slow consumer directly throttles upstream production.</p>
+    </div>
+    <div class="info-card">
+      <h4>try_push / drop-and-count</h4>
+      <p>A full queue rejects the new item immediately; the caller increments a drop counter (typically an <code>std::atomic&lt;uint64_t&gt;</code>) and moves on. Bounds latency for the producer at the cost of data loss — appropriate when freshness matters more than completeness, e.g. real-time telemetry.</p>
+    </div>
+  </div>
+  <p class="dim">A hybrid — <code>push_wait(timeout)</code> — blocks up to a bound before falling back to drop-and-count, trading a little latency for a lot fewer drops under transient bursts.</p>
+
+  <h3>8.3 Waking a Consumer Across Multiple Queues</h3>
+  <p>A single condition variable naturally pairs with a single mutex/queue. When one consumer thread must wake up whenever <em>any</em> of several independent queues receives an item (e.g. a publisher thread fanning in from many per-shard event queues), a single shared "wake" signal — one condition variable (or semaphore) that every producer notifies regardless of which queue it pushed to — lets the consumer block once and then scan all queues on wakeup, rather than requiring a separate waiter per queue.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 9: C++20 ADDITIONS                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-number">9</div>
+    <div class="section-title">C++20 Additions</div>
+  </div>
+
+  <p>C++20 added several purpose-built synchronization primitives that previously had to be hand-rolled on top of a mutex and condition variable — each one narrower than a general condvar, and correspondingly harder to misuse.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h4><code>std::latch</code></h4>
+      <p>A single-use countdown gate. <code>count_down()</code> decrements; <code>wait()</code> blocks until it hits zero. Common use: N worker threads each signal "initialized," and a coordinator waits for all N before proceeding. Cannot be reset or reused.</p>
+    </div>
+    <div class="info-card">
+      <h4><code>std::barrier</code></h4>
+      <p>Like a latch, but reusable across phases — once all participants arrive, everyone is released together and the barrier resets for the next round. Fits lock-step parallel algorithms (e.g. every worker finishes phase 1 before anyone starts phase 2), and takes an optional completion callback that runs once per phase.</p>
+    </div>
+    <div class="info-card">
+      <h4><code>std::counting_semaphore&lt;N&gt;</code></h4>
+      <p><code>acquire()</code> decrements a count (blocking at zero), <code>release()</code> increments it. Naturally models a bounded resource pool (e.g. "at most K concurrent connections") — unlike a mutex, a semaphore has no notion of an "owning thread," so it can be released by a different thread than the one that acquired it.</p>
+    </div>
+  </div>
+
+  <div class="callout insight">
+    <div class="ctitle">◈ std::binary_semaphore as a Lightweight Signal</div>
+    <code>std::binary_semaphore</code> is just <code>counting_semaphore&lt;1&gt;</code>, and is often the simplest tool for a one-shot "signal thread B that thread A finished a step" — cheaper conceptually than a mutex+condvar pair when there's no actual shared data to protect, only a signal to send.
+  </div>
+
+  <p class="dim">Section 2.2 already covers <code>std::jthread</code> and <code>std::stop_token</code>, the other headline C++20 concurrency addition — cooperative cancellation that composes with <code>condition_variable_any::wait</code> to interrupt a wait early on a stop request.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: CONCURRENCY DESIGN PATTERNS                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
+    <div class="section-title">Concurrency Design Patterns</div>
+  </div>
+
+  <p>Correct low-level primitives are necessary but not sufficient — most concurrency bugs come from a system's overall <em>shape</em>, not from misusing an individual mutex. A handful of recurring shapes cover most real designs.</p>
+
+  <h3>10.1 Ownership Sharding</h3>
+  <p>Rather than protecting one large shared structure with a lock, partition the data by some key (customer ID, symbol, shard index) so that each partition is owned exclusively by one thread. Correctness then comes from ownership, not from synchronization — a thread never needs to lock its own partition, because no other thread ever touches it. Cross-partition communication still needs synchronization (typically a queue per partition, see §8), but the hot-path data structure itself stays lock-free by construction.</p>
+  <div class="callout tip">
+    <div class="ctitle">💡 Why This Scales Better Than One Big Lock</div>
+    A single mutex around one large structure serializes every thread on every access, regardless of whether their work actually overlaps. Sharding by ownership means N threads working on N disjoint partitions truly run in parallel with zero contention between them — the design eliminates the need for the lock entirely, rather than making the lock faster.
+  </div>
+
+  <h3>10.2 Pipeline Stages</h3>
+  <p>Work flows through a fixed sequence of stages (e.g. ingest → process → publish), each running on its own dedicated thread, connected by a queue between each pair of adjacent stages. Each stage thread has a simple, single-purpose loop: pop from its input queue, do its transformation, push to its output queue. This keeps each stage's logic decoupled from the others' timing and makes throughput bottlenecks easy to isolate (whichever stage's queue backs up first is the bottleneck).</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 820 150" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="45" width="150" height="60" rx="6" fill="#151a2a" stroke="#4ade80" stroke-width="1.2"/>
+      <text x="85" y="80" fill="#4ade80" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Gateway</text>
+      <rect x="235" y="45" width="150" height="60" rx="6" fill="#151a2a" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="310" y="80" fill="#fbbf24" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Matcher</text>
+      <rect x="460" y="45" width="150" height="60" rx="6" fill="#151a2a" stroke="#38bdf8" stroke-width="1.2"/>
+      <text x="535" y="80" fill="#38bdf8" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Publisher</text>
+      <rect x="685" y="45" width="130" height="60" rx="6" fill="#151a2a" stroke="#a78bfa" stroke-width="1.2"/>
+      <text x="750" y="80" fill="#a78bfa" font-family="JetBrains Mono" font-size="12" text-anchor="middle">Sink</text>
+      <line x1="160" y1="75" x2="233" y2="75" stroke="#7680a0" stroke-width="1.3" marker-end="url(#pa)"/>
+      <line x1="385" y1="75" x2="458" y2="75" stroke="#7680a0" stroke-width="1.3" marker-end="url(#pa)"/>
+      <line x1="610" y1="75" x2="683" y2="75" stroke="#7680a0" stroke-width="1.3" marker-end="url(#pa)"/>
+      <defs><marker id="pa" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#7680a0"/></marker></defs>
+      <text x="196" y="35" fill="#7680a0" font-family="JetBrains Mono" font-size="9.5" text-anchor="middle">queue</text>
+      <text x="421" y="35" fill="#7680a0" font-family="JetBrains Mono" font-size="9.5" text-anchor="middle">queue</text>
+      <text x="646" y="35" fill="#7680a0" font-family="JetBrains Mono" font-size="9.5" text-anchor="middle">queue</text>
+    </svg>
+    <div class="cap">FIG 4 — a pipeline: each stage is one thread, connected by queues, each stage single-purpose</div>
+  </div>
+
+  <h3>10.3 Thread Pools</h3>
+  <p>A fixed set of worker threads, created once, pulling tasks (often <code>std::function&lt;void()&gt;</code> or <code>packaged_task</code>) from a shared queue, rather than spawning a new <code>std::thread</code> per unit of work. Thread creation is comparatively expensive (kernel-level allocation, stack setup); a pool amortizes that cost across the process's lifetime and bounds the number of concurrently-running threads to something sane relative to <code>hardware_concurrency()</code>.</p>
+  <div class="callout trap">
+    <div class="ctitle">⚠ Unbounded Thread-Per-Task Doesn't Scale</div>
+    Spawning a new thread for every incoming unit of work (a new connection, a new request) works fine at low load and degrades badly under bursts — thread creation cost, context-switch overhead, and memory for each thread's stack all scale linearly with concurrent load, with no ceiling. A bounded thread pool converts "how many threads exist" from a function of instantaneous load into a fixed, tunable constant.
+  </div>
+
+  <h3>10.4 Single-Threaded Ownership Inside a Worker</h3>
+  <p>A recurring correctness technique: instead of making a data structure itself thread-safe (locks inside every method), confine it to exactly one thread and make everything else about the system route through that thread via message-passing (queues). The structure itself needs zero internal synchronization — every access to it is, by construction, single-threaded — which both simplifies its implementation and removes an entire category of bugs from it. The cost moves to the boundary: the queues feeding that thread must themselves be correctly synchronized, but that's a much smaller, well-understood surface than "make an arbitrary data structure thread-safe."</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 11: PITFALLS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-number">11</div>
+    <div class="section-title">Pitfalls &amp; Gotchas</div>
+  </div>
+  <ul>
+    <li><strong>Deadlock</strong> — circular wait on multiple locks (§4.2). Fix with a consistent global lock order, or <code>std::scoped_lock</code>.</li>
+    <li><strong>Livelock</strong> — threads actively respond to each other (e.g. both back off and retry in lockstep) but make no forward progress, unlike deadlock's stillness. Randomized backoff, not just deterministic retry, is the usual fix.</li>
+    <li><strong>Priority inversion</strong> — a low-priority thread holds a lock a high-priority thread needs, and a medium-priority thread (which needs no lock) preempts the low-priority one, indirectly blocking the high-priority thread indefinitely. Priority-inheritance mutexes are the classical OS-level fix; at the application level, keeping critical sections short is the cheapest mitigation.</li>
+    <li><strong>False sharing</strong> — two unrelated atomics or variables used by different threads happen to sit on the same CPU cache line; every write to one invalidates the other thread's cached copy, causing costly cache-coherency traffic even though there's no logical data race. Fixed with padding or <code>alignas(std::hardware_destructive_interference_size)</code> (C++17) to force separation onto different cache lines.</li>
+    <li><strong>Thundering herd</strong> — <code>notify_all()</code> wakes every waiter, but only one can proceed (e.g. only one item is available); the rest wake, re-acquire the mutex, find the predicate still false, and go back to sleep, wasting cycles under high contention. Where the workload allows it, <code>notify_one()</code> per available unit of work avoids this.</li>
+    <li>Forgetting to hold the mutex while <em>reading</em> shared state, not just while writing it — a data race requires only one side to be a write; an unprotected read racing against a protected write is still undefined behavior.</li>
+    <li>Calling a callback or virtual function while still holding a lock — if that call re-enters the same object and tries to lock the same non-recursive mutex, it deadlocks against itself; if it calls into unrelated code that happens to acquire other locks, it widens the surface for lock-order deadlocks.</li>
+    <li>Copying a <code>std::thread</code>, <code>std::mutex</code>, <code>std::unique_ptr</code>-holding guard, or similar move-only synchronization type into a container that assumes copyability (some older or third-party container templates) — fails to compile, but the fix (switch to a move-friendly container, or store by <code>unique_ptr</code>) is sometimes non-obvious from the error message.</li>
+    <li>Assuming <code>std::atomic&lt;T&gt;</code> for a non-trivial <code>T</code> is lock-free — it compiles for any trivially-copyable type, but larger types commonly fall back to an internal mutex; check <code>is_lock_free()</code> rather than assuming.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 12: SELF-TEST                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s12">
+  <div class="section-header">
+    <div class="section-number">12</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try answering in your head first — these are pitched at the level a technical interview would ask.</p>
+
+  <details class="qa">
+    <summary>Why does a std::thread's destructor call std::terminate if it's still joinable, instead of just calling join() automatically?</summary>
+    <div class="qa-a">
+      <p>An implicit automatic join in the destructor would silently block the calling thread — potentially for an unbounded time, and potentially causing a deadlock the caller never asked for — at a point in the code where nothing textually suggests a wait is about to happen. The library refuses to make that choice on the programmer's behalf. Requiring an explicit <code>join()</code> or <code>detach()</code> forces the decision to be visible in the code, and <code>std::terminate</code> makes an unresolved thread a loud, immediate failure rather than a silent hang.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What's the actual difference between a data race and a race condition?</summary>
+    <div class="qa-a">
+      <p>A data race is the specific C++ standard term: unsynchronized concurrent access to the same memory location where at least one access is a write — it is always undefined behavior. A race condition is broader: any behavior that depends on the relative timing/interleaving of events, which can exist even in perfectly synchronized code (e.g. which of two properly-locked threads happens to insert first). Every data race creates a race condition, but plenty of race conditions involve no data race at all.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why is the predicate form of condition_variable::wait almost always preferred over a bare wait(lock)?</summary>
+    <div class="qa-a">
+      <p>It solves two distinct problems in one call: spurious wakeups (the standard permits a wait to return with no corresponding notify, so the actual condition must always be re-checked) and the lost-wakeup problem (a notify that arrives before the waiter starts waiting would otherwise be missed entirely). The predicate form is equivalent to looping <code>while (!pred()) wait(lock);</code>, which checks the condition before ever blocking and again after every wakeup.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Two threads communicate via a std::atomic&lt;bool&gt; flag: one writes data then stores the flag true; the other loads the flag then reads data. What memory orders make this correct, and why does memory_order_relaxed on both sides not work?</summary>
+    <div class="qa-a">
+      <p>The store needs <code>memory_order_release</code> and the load needs <code>memory_order_acquire</code> (or both sides can use the default <code>seq_cst</code>). The release/acquire pairing on the same atomic establishes a happens-before edge, guaranteeing the write to <code>data</code> is visible once the acquire-load observes <code>true</code>. With <code>relaxed</code> on both sides, the flag update is still atomic, but nothing prevents the compiler or CPU from reordering the write to <code>data</code> to after the flag store on the writer's side, or reordering the read of <code>data</code> to before the flag load on the reader's side — the flag becoming visible carries no guarantee at all about the visibility of <code>data</code>.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why can std::async's returned future block in its destructor, and how do you avoid that surprise?</summary>
+    <div class="qa-a">
+      <p>When the default or <code>std::launch::async</code> policy is used and the returned future is the last one referring to that shared state, its destructor blocks until the asynchronous task finishes — effectively an implicit join baked into an object that doesn't look like a thread handle. This most commonly bites when <code>std::async(...)</code> is called as a bare statement with no named variable: the temporary future is destroyed at the end of the full expression, so the call becomes fully synchronous despite appearances. Avoiding the surprise means either holding onto the future deliberately and calling <code>get()</code>/<code>wait()</code> explicitly, or being aware that a discarded async call still blocks the calling thread right there.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What's the ABA problem, and why doesn't a plain compare_exchange loop protect against it on a lock-free stack's head pointer?</summary>
+    <div class="qa-a">
+      <p>A CAS only checks bitwise equality against the last-read value — it can't distinguish "unchanged since I read it" from "changed away and back to the same bit pattern." On a lock-free stack, a node can be popped, freed, and a new allocation reused at the identical address, so a stale thread's CAS against the head pointer can succeed against a completely different logical stack state, corrupting it. Mitigations include tagging the pointer with a version counter that increments on every update (so the same address with a different tag fails the CAS), or deferring reclamation (hazard pointers, epoch-based reclamation) so an address can never be reused while any thread might still be referencing it.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>When would you shard a data structure by ownership across threads instead of protecting one shared structure with a mutex?</summary>
+    <div class="qa-a">
+      <p>When the workload can be partitioned by some stable key up front (e.g. by symbol, by customer ID, by shard index) such that items in different partitions never need to interact directly. Sharding by ownership means each partition's owning thread never needs to lock it at all — correctness comes from the fact that no other thread ever touches that memory — so N threads on N disjoint partitions run with genuinely zero contention between them, rather than being serialized by a single lock that a mutex-protected shared structure would impose regardless of whether the threads' work actually overlaps.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 13: CHEAT SHEET                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s13">
+  <div class="section-header">
+    <div class="section-number">13</div>
+    <div class="section-title">Decision Cheat Sheet</div>
+  </div>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Protecting one flag or counter</h4>
+      <p><code>std::atomic&lt;T&gt;</code> with the narrowest memory order that's correct — <code>relaxed</code> for an independent counter, <code>release</code>/<code>acquire</code> for a publish/observe handshake.</p>
+    </div>
+    <div class="info-card">
+      <h4>Protecting more than one related piece of state</h4>
+      <p><code>std::mutex</code> + <code>std::lock_guard</code>. Atomics don't compose — making two atomics individually safe doesn't make the pair consistent.</p>
+    </div>
+    <div class="info-card">
+      <h4>Waiting for a condition, not just a lock</h4>
+      <p><code>std::condition_variable</code> with the predicate form of <code>wait</code> — never a bare <code>wait(lock)</code> without re-checking the actual condition.</p>
+    </div>
+    <div class="info-card">
+      <h4>Locking more than one mutex at once</h4>
+      <p><code>std::scoped_lock</code> (or <code>std::lock</code>) to acquire the full set together — never lock them one at a time in an order that could differ between threads.</p>
+    </div>
+    <div class="info-card">
+      <h4>"Run this and give me the result later"</h4>
+      <p><code>std::async(std::launch::async, ...)</code> for a one-off, or <code>std::packaged_task</code> feeding a thread-pool queue for repeated work — either way, mind the async future's blocking destructor.</p>
+    </div>
+    <div class="info-card">
+      <h4>A thread object going out of scope</h4>
+      <p><code>std::jthread</code> by default in new C++20 code — its destructor requests a stop and joins automatically. Otherwise, an RAII guard (§2) around a plain <code>std::thread</code>.</p>
+    </div>
+    <div class="info-card">
+      <h4>One producer, one consumer, high throughput</h4>
+      <p>A bounded lock-free SPSC ring buffer with two atomic indices — no mutex needed since each side only ever writes its own index.</p>
+    </div>
+    <div class="info-card">
+      <h4>Many producers or many consumers on one queue</h4>
+      <p>A mutex + condition_variable bounded queue is the simplest correct default; reach for a lock-free MPMC design only once profiling shows the mutex is the actual bottleneck.</p>
+    </div>
+    <div class="info-card">
+      <h4>N workers must all reach a point before any proceeds</h4>
+      <p><code>std::latch</code> for a one-time rendezvous (e.g. startup); <code>std::barrier</code> for a repeating one across phases.</p>
+    </div>
+    <div class="info-card">
+      <h4>Bounding concurrent access to a limited resource</h4>
+      <p><code>std::counting_semaphore&lt;N&gt;</code> — unlike a mutex, release doesn't have to happen on the acquiring thread.</p>
+    </div>
+    <div class="info-card">
+      <h4>A structure that's read by many threads, written rarely</h4>
+      <p><code>std::shared_mutex</code> with <code>std::shared_lock</code> for readers, exclusive <code>std::unique_lock</code> for the rare writer.</p>
+    </div>
+    <div class="info-card">
+      <h4>Avoiding synchronization on a hot data structure entirely</h4>
+      <p>Shard by ownership (§10.1) so exactly one thread ever touches it, and route everything else through queues at the boundary.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  C++ Threads &amp; Concurrency · Companion Notes<br>
+  Covers: std::thread &amp; RAII Lifecycle · Data Races &amp; the Memory Model · Mutexes &amp; Deadlock · Condition Variables · Atomics &amp; Memory Order · Futures &amp; Async · Producer–Consumer Queues · C++20 Primitives · Design Patterns · Self-Test
+</footer>
+
+</body>
+</html>
