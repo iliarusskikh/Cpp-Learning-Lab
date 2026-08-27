@@ -309,6 +309,10 @@ int main() {
     
     
     //Example 6
+//    std::launch::async    Task must run on a new thread of execution, starting immediately (as-if via std::thread).
+//    std::launch::deferred    Task is not run at all until .get() or .wait() is called on the future. Then it runs synchronously, on the calling thread — no new thread is created.
+//    async | deferred (default)    Implementation picks one of the above, unspecified which, and can differ call to call.
+    
     // Launch the task asynchronously on a new, dedicated thread
     // This skips manual thread creation, promise wiring, and explicit joining
     std::future<int> fut = std::async(std::launch::async, backgroundCalculation, 21);
