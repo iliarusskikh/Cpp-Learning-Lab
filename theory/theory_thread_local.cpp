@@ -174,9 +174,7 @@ void consumer() {
                 // - If YES: it overwrites global_counter with new_val and returns TRUE (loop ends).
                 // - If NO: another thread beat us to it. It overwrites our local 'old_val'
                 //   with the current actual value of global_counter and returns FALSE (loop retries).
-            } while (!global_counter.compare_exchange_weak(old_val, new_val,
-                                                            std::memory_order_relaxed,
-                                                            std::memory_order_relaxed));
+            } while (!global_counter.compare_exchange_weak(old_val, new_val, std::memory_order_relaxed, std::memory_order_relaxed));
         }
     }
 
