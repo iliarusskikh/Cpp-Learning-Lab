@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strings &amp; Memory — C++ Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c14;
+    --bg2:       #0f121e;
+    --bg3:       #151a2a;
+    --border:    #232a42;
+    --blue:      #5b8af0;
+    --blue2:     #93b4f7;
+    --blue-dim:  #2a3a70;
+    --pink:      #f472b6;
+    --pink-dim:  #7a2e56;
+    --text:      #dde2f0;
+    --text-dim:  #7680a0;
+    --gold:      #c9a84c;
+    --gold2:     #e8c97a;
+    --green:     #4ade80;
+    --rose:      #fb7185;
+    --sky:       #38bdf8;
+    --teal:      #2dd4bf;
+    --amber:     #fbbf24;
+    --lime:      #a3e635;
+    --violet:    #a78bfa;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.78;
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 2rem 2rem 6rem;
+  }
+
+  .masthead {
+    text-align: center;
+    padding: 4rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .masthead::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 55% at 50% -5%, #5b8af022, transparent);
+    pointer-events: none;
+  }
+  .masthead .series-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: var(--blue-dim);
+    text-transform: uppercase;
+    margin-bottom: 0.9rem;
+  }
+  .masthead h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, var(--blue2), var(--pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    line-height: 1.25;
+    margin-bottom: 0.6rem;
+  }
+  .masthead .subtitle { color: var(--text-dim); font-size: 1rem; font-style: italic; }
+
+  .toc {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 3.5rem;
+  }
+  .toc h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    color: var(--blue);
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+  .toc ol { padding-left: 1.4rem; }
+  .toc li { margin: 0.28rem 0; }
+  .toc a { color: var(--text-dim); text-decoration: none; font-size: 0.93rem; transition: color .15s; }
+  .toc a:hover { color: var(--blue2); }
+
+  .section { margin-bottom: 4.5rem; }
+  .section-header {
+    display: flex; align-items: baseline; gap: 1rem;
+    margin-bottom: 2rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-number { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--blue-dim); min-width: 2.5rem; }
+  .section-title   { font-family: 'Cinzel', serif; font-size: 1.5rem; color: var(--blue2); font-weight: 600; }
+
+  h3 { font-family: 'Cinzel', serif; font-size: 1.02rem; color: var(--text); margin: 2.4rem 0 0.9rem; letter-spacing: 0.05em; font-weight: 600; }
+  h4 { font-size: 1rem; color: var(--blue); margin: 1.5rem 0 0.5rem; font-style: italic; font-weight: 500; }
+
+  p { margin-bottom: 0.85rem; }
+  p.dim { color: var(--text-dim); }
+
+  .fbox {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 4px; padding: 1.1rem 1.5rem; margin: 1rem 0; overflow-x: auto;
+  }
+  .fbox.gold   { border-left-color: var(--gold); }
+  .fbox.pink   { border-left-color: var(--pink); }
+  .fbox.teal   { border-left-color: var(--teal); }
+  .fbox.green  { border-left-color: var(--green); }
+  .fbox.amber  { border-left-color: var(--amber); }
+
+  .flabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem; color: var(--text-dim);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.45rem;
+  }
+
+  .code-block {
+    background: #080a10;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--pink);
+    border-radius: 4px;
+    padding: 1.1rem 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #c8d3e8;
+  }
+  .code-block .kw { color: var(--pink); }
+  .code-block .ty { color: var(--sky); }
+  .code-block .fn { color: var(--amber); }
+  .code-block .cm { color: #5a6a7a; font-style: italic; }
+  .code-block .st { color: var(--lime); }
+  .code-block .nm { color: var(--blue2); }
+  .code-block .op { color: var(--pink); }
+  .code-block .ln { color: #3a4560; display:inline-block; width:1.4em; user-select:none; }
+
+  .callout { border-radius: 4px; padding: 1rem 1.4rem; margin: 1.2rem 0; font-size: 0.95rem; }
+  .callout.tip     { background: #0a1e10; border-left: 3px solid var(--green); }
+  .callout.trap    { background: #1e0a0a; border-left: 3px solid var(--rose); }
+  .callout.insight { background: #140a22; border-left: 3px solid var(--violet); }
+  .callout.example { background: #08101e; border-left: 3px solid var(--sky); }
+  .callout.cpp     { background: #150a1c; border-left: 3px solid var(--pink); }
+
+  .ctitle { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; }
+  .callout.tip     .ctitle { color: var(--green); }
+  .callout.trap    .ctitle { color: var(--rose); }
+  .callout.insight .ctitle { color: var(--violet); }
+  .callout.example .ctitle { color: var(--sky); }
+  .callout.cpp     .ctitle { color: var(--pink); }
+
+  table { width: 100%; border-collapse: collapse; margin: 1.2rem 0; font-size: 0.91rem; }
+  th { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-dim); padding: 0.6rem 0.8rem; text-align: left; background: var(--bg2); }
+  td { padding: 0.52rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--bg2); }
+
+  .info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin:1.2rem 0; }
+  .info-grid.two { grid-template-columns:repeat(2,1fr); }
+  .info-card { background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:1.1rem 1.3rem; }
+  .info-card h4 { font-family:'Cinzel',serif; font-size:0.92rem; color:var(--blue2); margin-bottom:0.5rem; font-style:normal; letter-spacing:0.03em; }
+  .info-card p { font-size:0.9rem; color:var(--text-dim); margin:0; }
+
+  .diagram { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 1.6rem; margin: 1.3rem 0; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram .cap { margin-top: 0.8rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-dim); text-align: center; letter-spacing: 0.03em; }
+
+  /* memory strip */
+  .anatomy {
+    display: flex; flex-wrap: wrap; gap: 0; margin: 1.4rem 0;
+    border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; background: #080a10;
+  }
+  .anatomy .part { padding: 1rem 1.1rem; border-right: 1px solid var(--border); position: relative; flex: 1 1 auto; }
+  .anatomy .part:last-child { border-right: none; }
+  .anatomy .part .lbl {
+    display: block; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 0.4rem; font-family: 'JetBrains Mono', monospace;
+  }
+  .anatomy .part code { background: none; border: none; padding: 0; color: var(--text); font-size: 0.95rem; }
+
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.83em; background: var(--bg3); border: 1px solid var(--border); padding: 0.1em 0.4em; border-radius: 3px; color: var(--blue2); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  ul { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ul li { margin: 0.3rem 0; }
+  ol { padding-left: 1.5rem; margin-bottom: 0.8rem; }
+  ol li { margin: 0.3rem 0; }
+
+  /* revision self-test */
+  .qa { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; margin: 0.7rem 0; overflow: hidden; }
+  .qa summary {
+    cursor: pointer; list-style: none; padding: 0.9rem 1.3rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--blue2);
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  .qa summary::-webkit-details-marker { display: none; }
+  .qa summary::before { content: '▸'; color: var(--gold); transition: transform .15s; flex-shrink: 0; }
+  .qa[open] summary::before { transform: rotate(90deg); }
+  .qa[open] summary { border-bottom: 1px solid var(--border); }
+  .qa-a { padding: 1rem 1.3rem 1.2rem 2.8rem; font-size: 0.95rem; color: var(--text); }
+  .qa-a p { margin-bottom: 0.6rem; }
+  .qa-a p:last-child { margin-bottom: 0; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding-top: 2rem; border-top: 1px solid var(--border); font-style: italic; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16px; padding: 1rem 1rem 4rem; }
+    .masthead h1 { font-size: 1.5rem; }
+    .info-grid, .info-grid.two { grid-template-columns: 1fr; }
+    .anatomy { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="series-label">C++ Fundamentals</div>
+  <h1>Strings &amp; Memory</h1>
+  <div class="subtitle">Literals, arrays, pointers, and the standard string types — where each one actually lives</div>
+</div>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">Where Each Type Lives</a></li>
+    <li><a href="#s2">String Literals</a></li>
+    <li><a href="#s3">Char Arrays</a></li>
+    <li><a href="#s4">char* and const char*</a></li>
+    <li><a href="#s5">std::string</a></li>
+    <li><a href="#s6">std::string_view</a></li>
+    <li><a href="#s7">Side by Side</a></li>
+    <li><a href="#s8">Pitfalls &amp; Gotchas</a></li>
+    <li><a href="#s9">Self-Test</a></li>
+    <li><a href="#s10">Decision Cheat Sheet</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 1: MEMORY MAP                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <div class="section-title">Where Each Type Lives</div>
+  </div>
+
+  <p>Every one of C++'s string-ish types is really just a story about ownership and storage duration. Before comparing their APIs, it helps to see where each one's bytes actually sit.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="10" y="24" fill="#f472b6" font-family="JetBrains Mono" font-size="11" letter-spacing="1">READ-ONLY DATA SEGMENT</text>
+      <rect x="10" y="34" width="800" height="46" rx="3" fill="#150a1c" stroke="#7a2e56" stroke-width="1.2"/>
+      <text x="30" y="63" fill="#dde2f0" font-family="JetBrains Mono" font-size="13">"hello\0"   — static storage duration, lives for the whole program</text>
+
+      <text x="10" y="106" fill="#c9a84c" font-family="JetBrains Mono" font-size="11" letter-spacing="1">STACK</text>
+      <rect x="10" y="116" width="800" height="66" rx="3" fill="#151a2a" stroke="#8a6d24" stroke-width="1.2"/>
+      <text x="30" y="140" fill="#e8c97a" font-family="JetBrains Mono" font-size="12">char arr[] = "hello\0"</text>
+      <text x="290" y="140" fill="#e8c97a" font-family="JetBrains Mono" font-size="12">const char* p ----&gt;</text>
+      <text x="30" y="163" fill="#e8c97a" font-family="JetBrains Mono" font-size="12">std::string s = "hi"  (SSO — inline, no heap)</text>
+      <text x="470" y="163" fill="#e8c97a" font-family="JetBrains Mono" font-size="12">std::string big {len, cap, data*} ----&gt;</text>
+
+      <path d="M 445 140 C 470 128, 490 100, 200 78" fill="none" stroke="#5b8af0" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <text x="10" y="206" fill="#38bdf8" font-family="JetBrains Mono" font-size="11" letter-spacing="1">HEAP</text>
+      <rect x="10" y="216" width="800" height="34" rx="3" fill="#08101e" stroke="#1f5c86" stroke-width="1.2"/>
+      <text x="30" y="238" fill="#dde2f0" font-family="JetBrains Mono" font-size="12">"a much longer string that outgrew the inline buffer…"</text>
+
+      <path d="M 730 163 C 760 180, 760 195, 700 216" fill="none" stroke="#5b8af0" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#5b8af0"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="cap">FIG 1 — a literal lives once in read-only storage; a pointer to it just holds an address; a short std::string stays inline, a long one spills to the heap</div>
+  </div>
+
+  <p class="dim">Everything that follows is really an answer to two questions: who owns these bytes, and how long do they live? Keep that frame and the rest of the API differences fall out naturally.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 2: STRING LITERALS                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <div class="section-title">String Literals</div>
+  </div>
+
+  <p>A string literal like <code>"hello"</code> has type <code>const char[6]</code> — five characters plus the terminating null. It has <strong>static storage duration</strong>: the compiler allocates it once, and it exists for the entire lifetime of the program, typically in a read-only segment.</p>
+
+  <div class="flabel">literal.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">const</span> <span class="kw">char</span>* p = <span class="st">"hello"</span>;   <span class="cm">// correct, modern form</span>
+<span class="ln">2</span>  <span class="kw">char</span>*       q = <span class="st">"hello"</span>;   <span class="cm">// ill-formed since C++11</span></div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Never Mutate Through a Pointer to a Literal</div>
+    Writing through a pointer to a string literal is undefined behavior, even though pre-C++11 rules technically allowed binding one to a plain <code>char*</code>. Since C++11 that conversion no longer compiles at all — always bind literals to <code>const char*</code>.
+  </div>
+
+  <p class="dim">Identical literals may also be <strong>deduplicated</strong> by the compiler or linker — two <code>"hello"</code> literals elsewhere in the program can share one storage location. It's implementation-defined, but it's one more reason a mutable pointer into a literal is dangerous: you could be corrupting a constant some other part of the program relies on.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 3: CHAR ARRAYS                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <div class="section-title">Char Arrays</div>
+  </div>
+
+  <p><code>char arr[] = "hello";</code> copies the literal's bytes into a buffer <strong>you own</strong> — on the stack, in static storage, or as a class member, depending on where it's declared. Its size is fixed at compile time; there's no automatic growth.</p>
+
+  <div class="flabel">array.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">char</span> arr[6] = <span class="st">"hello"</span>;
+<span class="ln">2</span>  arr[0] = <span class="st">'H'</span>;   <span class="cm">// fine — this buffer is owned and mutable</span></div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ Array Decay Loses the Size</div>
+    <code>sizeof(arr)</code> gives the compile-time array size, terminator included — but an array passed to a function <strong>decays to a pointer</strong>. Inside that function, <code>sizeof</code> on the parameter just returns the pointer's size (4 or 8 bytes), not the string's length. Pass the length explicitly, or use a type that carries it.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 4: CHAR* AND CONST CHAR*                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <div class="section-title">char* and const char*</div>
+  </div>
+
+  <p>A <code>char*</code> is just an address. It has <strong>no ownership</strong>, doesn't manage lifetime, and doesn't know its own length — length comes from the null terminator (<code>strlen</code>) or from tracking it separately elsewhere.</p>
+
+  <div class="flabel">pointer.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">const</span> <span class="kw">char</span>* p = <span class="st">"hi"</span>;   <span class="cm">// points at read-only literal</span>
+<span class="ln">2</span>  <span class="kw">char</span>*       q = arr;    <span class="cm">// points at mutable owned memory</span></div>
+
+  <p>Whether writing through it is safe depends entirely on <em>what</em> it points to — a literal (never), a stack array (usually fine), or heap memory you allocated (fine, but you must free it, exactly once).</p>
+
+  <div class="callout insight">
+    <div class="ctitle">◆ Ownership Is Not In the Type</div>
+    <code>char*</code> and <code>const char*</code> carry no information about who is responsible for freeing the memory they point to — that contract lives only in documentation and convention. This is precisely the gap RAII types like <code>std::string</code>, <code>std::vector&lt;char&gt;</code>, and <code>std::unique_ptr&lt;char[]&gt;</code> close.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 5: STD::STRING                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <div class="section-title">std::string</div>
+  </div>
+
+  <p><code>std::string</code> owns a dynamically managed, resizable buffer and knows its own <code>.size()</code>. It converts implicitly from a literal or a <code>const char*</code>, and hands one back out via <code>.c_str()</code> or <code>.data()</code>.</p>
+
+  <div class="flabel">string.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  std::string s = <span class="st">"hello"</span>;
+<span class="ln">2</span>  s += <span class="st">" world"</span>;
+<span class="ln">3</span>  <span class="kw">const</span> <span class="kw">char</span>* cstr = s.<span class="fn">c_str</span>();   <span class="cm">// null-terminated, guaranteed since C++11</span></div>
+
+  <h3 id="s5-sso">5.1 Small String Optimization</h3>
+  <p>Most implementations store short strings — commonly around 15 to 22 characters, the exact threshold is implementation-defined — <strong>inline in the object itself</strong>, avoiding a heap allocation entirely. Once a string outgrows that inline buffer, it falls back to a heap-allocated one, and the object instead stores a pointer, a length, and a capacity.</p>
+
+  <div class="callout tip">
+    <div class="ctitle">✓ Repeated Append Is Cheap</div>
+    <code>+=</code> and <code>.append()</code> in a loop are amortized O(1) — capacity grows geometrically. Chaining <code>+</code> repeatedly instead builds and discards temporaries on every step; prefer <code>+=</code>, <code>.append()</code>, or a formatting library when assembling a string.
+  </div>
+
+  <p class="dim">Limited <code>constexpr</code> support for <code>std::string</code> arrived in C++20, but it's still more restricted than what <code>std::string_view</code> allows.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 6: STD::STRING_VIEW                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <div class="section-title">std::string_view</div>
+  </div>
+
+  <p>(C++17) A <code>std::string_view</code> is just a pointer and a length — <strong>no allocation, no ownership</strong>, and no guarantee of null-termination. It's ideal for read-only function parameters: it accepts a literal, a <code>char[]</code>, or a <code>std::string</code> without copying or converting.</p>
+
+  <div class="flabel">view.cpp</div>
+  <div class="code-block"><span class="ln">1</span>  <span class="kw">void</span> <span class="fn">log</span>(std::string_view msg);   <span class="cm">// accepts literal, string, or char array — no copy</span>
+<span class="ln">2</span>
+<span class="ln">3</span>  std::string_view <span class="fn">danger</span>() {
+<span class="ln">4</span>      std::string tmp = <span class="st">"temporary"</span>;
+<span class="ln">5</span>      <span class="kw">return</span> tmp;   <span class="cm">// view outlives its source — dangling</span>
+<span class="ln">6</span>  }</div>
+
+  <div class="callout trap">
+    <div class="ctitle">⚠ It Can Dangle</div>
+    A <code>string_view</code> doesn't extend the lifetime of what it points at, any more than a plain reference would. If the underlying <code>std::string</code> or buffer goes out of scope — or a <code>std::string</code> it aliased gets reallocated — while the view is still alive, using it is undefined behavior.
+  </div>
+
+  <p class="dim"><code>std::string_view</code> is usable in <code>constexpr</code> contexts more freely than <code>std::string</code>, which is part of why it's the natural read-only counterpart rather than a full replacement.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 7: SIDE BY SIDE                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-number">7</div>
+    <div class="section-title">Side by Side</div>
+  </div>
+
+  <table>
+    <tr><th>Type</th><th>Owns Memory</th><th>Mutable</th><th>Knows Length</th><th>Typical Use</th></tr>
+    <tr><td><code>"literal"</code></td><td>No — static storage</td><td>No (UB)</td><td>Via array size / strlen</td><td>Source of initial data</td></tr>
+    <tr><td><code>char arr[N]</code></td><td>Yes — stack / static / member</td><td>Yes</td><td>Yes, while in scope</td><td>Fixed buffers, C interop, no-heap code</td></tr>
+    <tr><td><code>char*</code> / <code>const char*</code></td><td>No</td><td>Depends on target</td><td>No</td><td>C APIs, low-level pointer work</td></tr>
+    <tr><td><code>std::string</code></td><td>Yes — heap or inline (SSO)</td><td>Yes</td><td>Yes</td><td>Default for owned, mutable text</td></tr>
+    <tr><td><code>std::string_view</code></td><td>No</td><td>No</td><td>Yes</td><td>Read-only parameters, avoiding copies</td></tr>
+  </table>
+
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Default choice</h4>
+      <p><code>std::string</code> — owns its memory, manages its own lifetime, and SSO keeps short strings cheap.</p>
+    </div>
+    <div class="info-card">
+      <h4>Read-only parameter</h4>
+      <p><code>std::string_view</code> instead of <code>const std::string&amp;</code> or <code>const char*</code> — accepts anything, copies nothing.</p>
+    </div>
+    <div class="info-card">
+      <h4>C boundary</h4>
+      <p><code>const char*</code> — interfacing with C APIs, printf-style functions, or a literal passed straight through.</p>
+    </div>
+    <div class="info-card">
+      <h4>No-heap / fixed format</h4>
+      <p><code>char arr[N]</code> — performance-sensitive, embedded, or when a C API writes into a caller-supplied buffer.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 8: PITFALLS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-number">8</div>
+    <div class="section-title">Pitfalls &amp; Gotchas</div>
+  </div>
+  <ul>
+    <li><code>sizeof</code> vs <code>strlen</code>: <code>sizeof(arr)</code> on a <code>char[]</code> is a compile-time constant — the declared size, terminator included. <code>strlen(ptr)</code> is a runtime O(n) walk to the first <code>\0</code>. Mixing them up after array-to-pointer decay is a classic bug.</li>
+    <li>Never let a mutable <code>char*</code> point at a literal — illegal since C++11, and always a bug magnet before that.</li>
+    <li>Raw <code>char*</code> ownership means no RAII — easy leaks, double-frees, and dangling pointers. Prefer <code>std::vector&lt;char&gt;</code> or <code>std::unique_ptr&lt;char[]&gt;</code> over manual <code>new[]</code> / <code>delete[]</code>.</li>
+    <li><code>std::string::c_str()</code> has always been null-terminated; since C++11, <code>.data()</code> is guaranteed null-terminated too, so either can go straight to a C API. <code>std::string_view::data()</code> carries no such guarantee.</li>
+    <li>A <code>std::string_view</code> into a <code>std::string</code> can dangle even without the source going out of scope — any reallocation (e.g. from appending past capacity) invalidates it, just like it would invalidate an iterator.</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 9: SELF-TEST                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-number">9</div>
+    <div class="section-title">Self-Test</div>
+  </div>
+  <p class="dim">Tap a question to reveal the answer. Try answering in your head first.</p>
+
+  <details class="qa">
+    <summary>Why is char* q = "hello"; ill-formed in modern C++, when it compiled historically?</summary>
+    <div class="qa-a">
+      <p>A string literal's type is <code>const char[N]</code>. Binding it to a non-const <code>char*</code> requires an implicit const-to-non-const conversion, which C++03 allowed as a deprecated special case purely for backward compatibility with C. That conversion was removed entirely in C++11 — the correct, and now only legal, form is <code>const char* p = "hello";</code>.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>What actually happens in memory when a std::string grows past the SSO buffer?</summary>
+    <div class="qa-a">
+      <p>The object stops storing characters inline and instead allocates a heap buffer sized to the new capacity (typically growing geometrically), copies the existing characters into it, and updates its internal pointer, size, and capacity fields to describe that heap buffer. Everything holding the old inline address becomes irrelevant — but any iterator or <code>string_view</code> that pointed into the old inline storage is now invalidated.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why can sizeof silently give the wrong answer for a "string length"?</summary>
+    <div class="qa-a">
+      <p>Because <code>sizeof</code> only behaves like you'd expect on the array itself, in the scope where it's still an array. The moment that array is passed to a function, it decays to a pointer parameter, and <code>sizeof</code> on that parameter returns the pointer's size — 4 or 8 bytes — not the original array's length. The fix is to pass the length alongside the pointer, or use a type like <code>std::string_view</code> that carries its own length.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>Why is a std::string_view returned from a function that built a local std::string dangerous?</summary>
+    <div class="qa-a">
+      <p>The local <code>std::string</code> is destroyed when the function returns, freeing whatever buffer it owned (its heap allocation, or its inline SSO storage — either way, memory tied to the now-dead object). The returned <code>string_view</code> still holds a pointer into that freed memory, so any use of it afterward is undefined behavior, whether or not the bug happens to "look fine" in a given build.</p>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>When would you genuinely prefer a raw char[N] over std::string?</summary>
+    <div class="qa-a">
+      <p>When dynamic allocation itself is the thing you're avoiding — embedded or real-time code with no heap, a fixed-format protocol buffer, or a C API that expects to write into a caller-supplied buffer of known size. Outside those cases, <code>std::string</code>'s SSO already avoids allocation for short strings, so the manual-buffer cost rarely pays for itself.</p>
+    </div>
+  </details>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!--  SECTION 10: CHEAT SHEET                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-number">10</div>
+    <div class="section-title">Decision Cheat Sheet</div>
+  </div>
+  <div class="info-grid two">
+    <div class="info-card">
+      <h4>Owning and mutating text</h4>
+      <p><code>std::string</code>. Manages its own memory, is exception-safe, and integrates with the whole standard library.</p>
+    </div>
+    <div class="info-card">
+      <h4>Just reading text in a function</h4>
+      <p><code>std::string_view</code> parameter. Accepts any source, copies nothing — but never store one past its source's lifetime.</p>
+    </div>
+    <div class="info-card">
+      <h4>Calling into a C API</h4>
+      <p><code>const char*</code>, obtained from <code>.c_str()</code> or <code>.data()</code> if you started from a <code>std::string</code>.</p>
+    </div>
+    <div class="info-card">
+      <h4>No heap allowed</h4>
+      <p>A raw <code>char arr[N]</code>, sized for the worst case, filled with <code>snprintf</code> or similar.</p>
+    </div>
+    <div class="info-card">
+      <h4>A pointer that must own its buffer</h4>
+      <p><code>std::vector&lt;char&gt;</code> or <code>std::unique_ptr&lt;char[]&gt;</code> — never a raw <code>new[]</code> without a matching, guaranteed <code>delete[]</code>.</p>
+    </div>
+    <div class="info-card">
+      <h4>Building a string in a loop</h4>
+      <p><code>+=</code> or <code>.append()</code>, not chained <code>+</code> — avoids repeated temporary construction.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  C++ Strings &amp; Memory · Fundamentals Companion Notes<br>
+  Covers: String Literals · Char Arrays · char* / const char* · std::string · std::string_view · Comparison · Pitfalls · Self-Test · Cheat Sheet
+</footer>
+
+</body>
+</html>

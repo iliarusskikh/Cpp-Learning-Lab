@@ -48,3 +48,50 @@ int main()
     return 0;
 }
 
+/*
+ 
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+
+ struct S {
+     int data_length;
+     int data[]; // Flexible array member (must be the last element)
+ };
+
+ int myfunction(const struct S *s) {
+     int result = 0;
+
+     for (int i = 0; i < s->data_length; i++) {
+         result += s->data[i];
+     }
+
+     return result;
+ }
+
+ int main() {
+     int size = 5; // Set your desired size here
+
+     // 1. Allocate memory for struct + space for 'size' integers
+     struct S *s = malloc(sizeof(struct S) + size * sizeof(int));
+     if (s == NULL) {
+         return 1; // Handle allocation failure
+     }
+
+     // 2. Assign the size variable
+     s->data_length = size;
+
+     // 3. Populate array elements
+     for (int i = 0; i < s->data_length; i++) {
+         s->data[i] = (i + 1) * 10; // Assign values: 10, 20, 30, 40, 50
+     }
+
+     // 4. Call the function
+     int sum = myfunction(s);
+     printf("Sum: %d\n", sum); // Outputs: Sum: 150
+
+     // 5. Clean up memory
+     free(s);
+     return 0;
+ }
+ */
