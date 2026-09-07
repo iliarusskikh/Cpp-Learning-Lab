@@ -8,7 +8,6 @@
 // Example input coins = [1,2,5] ,amount=11;
 // Output : 3
  
- 
  #include <vector>
  #include <algorithm>
 
@@ -21,10 +20,11 @@
      
      // Base case state initialization
      dp[0] = 0;
+     //dp[i] - represents the min amount of coins required to reach i value;
      
      // Iteratively build up combinations for every amount up to target
      for (int i = 1; i <= amount; ++i) {
-         for (int coin : coins) {
+         for (int& coin : coins) {
              // Check if the coin value can fit into the current target amount 'i'
              if (i >= coin) {
                  // The minimum coins for amount 'i' is either its current value,
@@ -37,6 +37,3 @@
      // If dp[amount] is still greater than amount, it means the target was unreachable
      return dp[amount] > amount ? -1 : dp[amount];
  }
-
-
-
