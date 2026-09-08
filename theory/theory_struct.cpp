@@ -58,8 +58,10 @@ int main()
  struct S {
      int data_length;
      int data[]; // Flexible array member (must be the last element)
+ // int* data;
  };
 
+ //in C there are no pass by ref
  int myfunction(const struct S *s) {
      int result = 0;
 
@@ -112,6 +114,7 @@ int main()
  struct S {
      int data_length;
      int data[]; // Flexible array member
+ //can be int * data, altho need s->data = malloc...
  };
 
  // Accepts a reference to struct S
