@@ -216,5 +216,24 @@ int main() {
     std::string anotherOwned{view};
     
     
-    return EXIT_SUCCESS;
+    /*
+    std::string input = "AAPL,150.25,100;GOOG,2800.50,50;MSFT,300.75,200";
+    std::string_view input_view(input);
+    
+    size_t pos = 0;
+    //std::cout << "Input string: " << input_view.substr(0, input_view.find(';')) << "\n";
+    while((pos = input_view.find(';')) != std::string_view::npos) {
+        std::string_view token = input_view.substr(0, pos);
+        std::cout << "Token: " << token << "\n";
+        input_view.remove_prefix(pos + 1); // Directly use pos instead of recalculating token.size()
+        //input_view.remove_prefix(token.size() + 1); // +1 to skip the semicolon
+    }
+    // Handle the last token after the last semicolon
+    if(!input_view.empty()) {
+        std::cout << "Token: " << input_view << "\n";
+    }
+*/
+    
+    
+    return 0;
 }
