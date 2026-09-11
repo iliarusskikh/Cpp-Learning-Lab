@@ -49,7 +49,6 @@ void safe_print(int id, const std::string& msg)
 
     // ── Release the lock ───────────────────────────────────────
     locked.store(false, std::memory_order_release);
-    // → other waiting threads can now see that it's free again
 }
 
 
@@ -80,8 +79,7 @@ int main()
 {
     std::cout << "=== Part 1: Spinlock protecting cout ===\n\n";
 
-    std::vector<std::thread> threads;
-
+    std::vector<std::thread> threads
     // Create 8 threads that each do "enter" + "exit"
     // → total 16 threads touching the same atomic<bool> lock
     for (int i = 1; i <= 8; ++i)
@@ -89,14 +87,13 @@ int main()
         threads.emplace_back(safe_print, i, "→ Entered");
         threads.emplace_back(safe_print, i, "← Exited");
     }
-
     // Wait for all threads to finish
     for (auto& t : threads) t.join();
 
     threads.clear();   // reuse the same vector
 
+    
     std::cout << "\n=== Part 2: Lock-free atomic counter ===\n\n";
-
     counter = 0;       // reset counter to zero
 
     // Create 10 threads that each increment the counter once
@@ -104,14 +101,10 @@ int main()
     {
         threads.emplace_back(count_visit, i);
     }
-
-    // Wait again
     for (auto& t : threads) t.join();
 
     // Read final value (load() is safe even without synchronization)
     std::cout << "\nFinal visitor count = " << counter.load() << "\n";
-
-    
     
     int value = 55;
     counter.store(value, std::memory_order_release);
