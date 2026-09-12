@@ -238,3 +238,62 @@ int main()
 }
 
 //theory_maps.cpp
+
+
+/*
+ 
+ #include <iostream>
+ #include <map>
+ #include <string>
+ #include <tuple>
+
+ struct Position {
+     int qty;
+     std::string sym;
+
+     // std::map needs operator< (via std::less<Position> by default)
+     bool operator<(const Position& other) const {
+         return std::tie(sym, qty) < std::tie(other.sym, other.qty);
+     }
+ };
+
+ int main() {
+     std::map<Position, double> positionMap; // no custom comparator needed now
+
+     positionMap[{100, "AAPL"}] = 150.25;
+     positionMap[{50, "GOOG"}] = 2800.50;
+     positionMap[{75, "AAPL"}] = 151.00; // different qty, same sym -> distinct key
+
+     for (const auto& [pos, price] : positionMap) {
+         std::cout << pos.sym << " qty=" << pos.qty << " -> $" << price << "\n";
+     }
+ }
+ */
+
+
+
+
+
+struct NewStruct{
+    int a;
+    double k;
+};
+
+struct MyHas {
+    size_t operator()(const NewStruct& s1) const noexcept {
+        size_t h1 = std::hash<int>()(s1.a);
+        size_t h2 = std::hash<double>()(s1.k);
+        
+        // Combine hashes (using a standard bit-shift hash combine pattern)
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    }
+};
+
+struct MyEq {
+    bool operator()(const NewStruct& a, const NewStruct& b) const noexcept {
+        return (a.a == b.a) && (a.k == b.k);
+    }
+};
+
+// Map instantiation
+std::unordered_map<NewStruct, int, MyHas, MyEq> mmp;
