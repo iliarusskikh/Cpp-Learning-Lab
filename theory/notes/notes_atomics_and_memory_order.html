@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atomics &amp; Memory Order — Notes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #151b23;
+    --bg-panel-alt: #1a2129;
+    --border: #262f3a;
+    --text: #dbe2ea;
+    --text-dim: #8b98a5;
+    --accent: #5fb3f7;
+    --accent-2: #f2b94b;
+    --accent-3: #6ee7b7;
+    --accent-4: #f77b8f;
+    --code-bg: #0a0e14;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 16px;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Sidebar ---------- */
+  nav.toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 18px 40px 24px;
+    border-right: 1px solid var(--border);
+  }
+
+  nav.toc .brand {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    font-weight: 600;
+  }
+
+  nav.toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  nav.toc li { margin: 2px 0; }
+
+  nav.toc a.toc-link {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-size: 14px;
+    border-left: 2px solid transparent;
+  }
+
+  nav.toc a.toc-link:hover {
+    background: var(--bg-panel);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  nav.toc ul.sub {
+    margin-left: 10px;
+    border-left: 1px dashed var(--border);
+  }
+
+  nav.toc ul.sub a.toc-link { font-size: 13px; padding: 4px 10px; }
+
+  /* ---------- Main content ---------- */
+  main { padding: 40px 48px 100px; min-width: 0; }
+
+  header.hero {
+    margin-bottom: 48px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header.hero h1 {
+    font-size: 2.4rem;
+    margin: 0 0 10px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.02em;
+  }
+
+  header.hero p.sub {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 700px;
+    margin: 0;
+  }
+
+  section { margin-bottom: 64px; scroll-margin-top: 20px; }
+
+  section h2 {
+    font-size: 1.6rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    color: #fff;
+  }
+
+  section h2 .num {
+    font-size: 0.85rem;
+    color: var(--bg);
+    background: var(--accent);
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  section > p.lede {
+    color: var(--text-dim);
+    margin-top: 0;
+    margin-bottom: 24px;
+    max-width: 780px;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    color: var(--accent);
+    margin-top: 32px;
+    margin-bottom: 10px;
+  }
+
+  h3 .tag {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.95rem;
+    background: var(--bg-panel-alt);
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--accent-2);
+    margin-right: 8px;
+  }
+
+  p { color: var(--text); }
+  p.note-body { max-width: 780px; }
+
+  /* ---------- Panels / callouts ---------- */
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin: 18px 0;
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: linear-gradient(90deg, rgba(95,179,247,0.08), transparent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 18px 0;
+    max-width: 780px;
+  }
+
+  .callout.warn { border-left-color: var(--accent-4); background: linear-gradient(90deg, rgba(247,123,143,0.08), transparent); }
+  .callout.good { border-left-color: var(--accent-3); background: linear-gradient(90deg, rgba(110,231,183,0.08), transparent); }
+  .callout.info { border-left-color: var(--accent-2); background: linear-gradient(90deg, rgba(242,185,75,0.08), transparent); }
+
+  .callout .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .callout.warn .label { color: var(--accent-4); }
+  .callout.good .label { color: var(--accent-3); }
+  .callout.info .label { color: var(--accent-2); }
+
+  /* ---------- Code blocks ---------- */
+  .code-wrap {
+    position: relative;
+    margin: 16px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    max-width: 860px;
+  }
+
+  .code-title {
+    background: var(--bg-panel-alt);
+    color: var(--text-dim);
+    font-size: 12.5px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .code-title .dots { display: flex; gap: 6px; }
+  .code-title .dots span {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #3a4453;
+  }
+
+  pre {
+    margin: 0;
+    padding: 18px 20px;
+    overflow-x: auto;
+    background: var(--code-bg) !important;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  pre code.hljs {
+    background: transparent !important;
+    padding: 0 !important;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+
+  code:not(.hljs) {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    background: var(--bg-panel-alt);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    color: var(--accent-2);
+  }
+
+  /* ---------- Tables ---------- */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0;
+    font-size: 14px;
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--bg-panel-alt);
+    color: var(--accent);
+    font-size: 12.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  td code, th code { white-space: nowrap; }
+
+  /* ---------- Ordering strength bar ---------- */
+  .strength-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 14px;
+    margin: 8px 0;
+  }
+  .strength-row .bar-bg {
+    background: var(--bg-panel-alt);
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .strength-row .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent-3), var(--accent));
+  }
+  .strength-row .name {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  /* ---------- Happens-before diagram ---------- */
+  .hb-diagram {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    margin: 24px 0;
+    max-width: 780px;
+  }
+  .hb-thread {
+    flex: 1;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .hb-thread .thread-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+  .hb-step {
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    background: var(--bg-panel-alt);
+    border: 1px solid var(--border);
+  }
+  .hb-step.release { border-color: var(--accent-3); color: var(--accent-3); }
+  .hb-step.acquire { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- Grid of cards ---------- */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 18px 0;
+    max-width: 900px;
+  }
+  .card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card .op-name {
+    font-family: monospace;
+    color: var(--accent-2);
+    font-size: 14px;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .card p { font-size: 13.5px; color: var(--text-dim); margin: 0; }
+
+  /* ---------- Summary / cheat sheet ---------- */
+  .cheat {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+  }
+  .cheat h4 { margin-top: 0; color: var(--accent-3); font-size: 1rem; }
+  .cheat ul { margin: 8px 0 20px; padding-left: 20px; }
+  .cheat li { margin-bottom: 6px; font-size: 14.5px; }
+  .cheat li:last-child { margin-bottom: 0; }
+
+  footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 30px 0 10px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #2a333e; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #38424f; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 28px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <nav class="toc">
+    <div class="brand">Atomics &amp; Memory Order</div>
+    <ul>
+      <li><a class="toc-link" href="#why">1. Why atomics exist</a></li>
+      <li><a class="toc-link" href="#reordering">2. The reordering problem</a></li>
+      <li><a class="toc-link" href="#orders">3. Memory orders</a>
+        <ul class="sub">
+          <li><a class="toc-link" href="#relaxed">3.1 relaxed</a></li>
+          <li><a class="toc-link" href="#relacq">3.2 release / acquire</a></li>
+          <li><a class="toc-link" href="#acqrel">3.3 acq_rel</a></li>
+          <li><a class="toc-link" href="#seqcst">3.4 seq_cst</a></li>
+          <li><a class="toc-link" href="#consume">3.5 consume</a></li>
+        </ul>
+      </li>
+      <li><a class="toc-link" href="#operations">4. Core operations</a></li>
+      <li><a class="toc-link" href="#patterns">5. Common patterns</a>
+        <ul class="sub">
+          <li><a class="toc-link" href="#spinlock">5.1 Spinlock</a></li>
+          <li><a class="toc-link" href="#publish">5.2 Publish / flag</a></li>
+          <li><a class="toc-link" href="#casloop">5.3 CAS retry loop</a></li>
+          <li><a class="toc-link" href="#refcount">5.4 Reference counting</a></li>
+        </ul>
+      </li>
+      <li><a class="toc-link" href="#cheatsheet">6. Cheat sheet</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>Atomics &amp; Memory Order</h1>
+      <p class="sub">How C++ atomics guarantee correctness under concurrency — from raw atomicity, to compiler/CPU
+      reordering, to the <code>memory_order</code> guarantees that let threads communicate safely.</p>
+    </header>
+
+    <!-- 1. WHY ATOMICS -->
+    <section id="why">
+      <h2><span class="num">1</span> Why atomics exist</h2>
+      <p class="lede">Two separate problems get solved by the same feature: <strong>atomicity</strong> (an operation
+      can't be observed half-done) and <strong>ordering / visibility</strong> (when a write becomes visible to other
+      threads, and in what order).</p>
+
+      <h3>The torn-write problem</h3>
+      <p class="note-body">A plain <code>int</code> increment like <code>counter++</code> is really three steps:
+      load, add, store. If two threads do this concurrently without synchronization, updates can be lost — this is a
+      <strong>data race</strong>, and it's undefined behavior in C++.</p>
+
+      <div class="code-wrap">
+        <div class="code-title"><span>race.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">int counter = 0;
+
+void worker() {
+    for (int i = 0; i < 100000; ++i)
+        counter++;   // NOT atomic: load, add, store — can interleave
+}
+
+// Two threads running worker() concurrently on a plain int
+// will very likely produce counter &lt; 200000. This is UB.</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="label">Key point</span>
+        <code>std::atomic&lt;int&gt;</code> fixes this by making the read-modify-write indivisible. That alone is
+        what <code>memory_order_relaxed</code> guarantees — nothing more.
+      </div>
+    </section>
+
+    <!-- 2. REORDERING -->
+    <section id="reordering">
+      <h2><span class="num">2</span> The reordering problem</h2>
+      <p class="lede">Atomicity alone doesn't make multi-threaded code correct. The compiler and CPU are free to
+      reorder instructions as long as a <em>single thread</em> can't observe the difference — but another thread
+      watching memory absolutely can.</p>
+
+      <div class="code-wrap">
+        <div class="code-title"><span>publish.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">int data = 0;
+std::atomic&lt;bool&gt; ready{false};
+
+// Thread A
+void producer() {
+    data = 42;                 // (1) ordinary write
+    ready.store(true);         // (2) atomic write
+}
+
+// Thread B
+void consumer() {
+    while (!ready.load());     // (3) atomic read
+    std::cout << data;         // (4) ordinary read — is this guaranteed to see 42?
+}</code></pre>
+      </div>
+
+      <p class="note-body">Intent: A writes <code>data</code>, then signals <code>ready</code>; B waits for
+      <code>ready</code>, then reads <code>data</code>. Without ordering guarantees this can still break:</p>
+
+      <div class="panel">
+        <ul style="margin:0; padding-left: 20px;">
+          <li style="margin-bottom:8px;">The compiler/CPU may reorder <b>(1)</b> and <b>(2)</b> in thread A — <code>ready</code> becomes visible before <code>data</code> does.</li>
+          <li style="margin-bottom:8px;">Thread B's cache may simply not have picked up A's write to <code>data</code> yet, even after <code>ready</code> is seen as <code>true</code>.</li>
+          <li>Reordering <b>(3)</b> and <b>(4)</b> in thread B is also possible without an ordering constraint.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <span class="label">The core idea</span>
+        Memory order annotations are instructions to the compiler and CPU: <em>"don't reorder around this
+        operation, and make sure the right things are flushed / visible when it happens."</em> They create a
+        <strong>happens-before</strong> relationship between threads.
+      </div>
+    </section>
+
+    <!-- 3. MEMORY ORDERS -->
+    <section id="orders">
+      <h2><span class="num">3</span> Memory orders</h2>
+      <p class="lede">Six values, from weakest (cheapest, fewest guarantees) to strongest (most guarantees, most
+      expensive). Stronger orders restrict what the compiler/CPU may reorder, which costs performance on some
+      architectures (notably ARM/POWER; x86 is naturally strong for most of these).</p>
+
+      <div class="strength-row">
+        <span class="name">relaxed</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 15%"></div></div>
+      </div>
+      <div class="strength-row">
+        <span class="name">consume</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 35%"></div></div>
+      </div>
+      <div class="strength-row">
+        <span class="name">acquire</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 55%"></div></div>
+      </div>
+      <div class="strength-row">
+        <span class="name">release</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 55%"></div></div>
+      </div>
+      <div class="strength-row">
+        <span class="name">acq_rel</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 78%"></div></div>
+      </div>
+      <div class="strength-row">
+        <span class="name">seq_cst</span>
+        <div class="bar-bg"><div class="bar-fill" style="width: 100%"></div></div>
+      </div>
+
+      <h3 id="relaxed"><span class="tag">memory_order_relaxed</span></h3>
+      <p class="note-body">Only atomicity is guaranteed. No ordering constraint on surrounding reads/writes, and no
+      cross-thread visibility guarantee for anything else. Operations on the <em>same</em> atomic variable are still
+      seen in a consistent order by all threads (modification order), but that's it.</p>
+
+      <div class="code-wrap">
+        <div class="code-title"><span>relaxed.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">std::atomic&lt;long&gt; hits{0};
+
+void on_request() {
+    // just counting — no other memory depends on this value's timing
+    hits.fetch_add(1, std::memory_order_relaxed);
+}</code></pre>
+      </div>
+      <div class="callout good">
+        <span class="label">Use it for</span>
+        Independent counters/statistics where you only care about the final atomic value, not about ordering it
+        against other memory operations.
+      </div>
+
+      <h3 id="relacq"><span class="tag">memory_order_release</span> / <span class="tag">memory_order_acquire</span></h3>
+      <p class="note-body">Used as a <strong>pair</strong> on the same atomic variable to create a synchronization
+      point between two threads:</p>
+
+      <ul>
+        <li><b>release</b> (on a store): no reads/writes in this thread may be reordered <em>after</em> this store.
+        All prior writes become visible to any thread that acquires this same value.</li>
+        <li><b>acquire</b> (on a load): no reads/writes in this thread may be reordered <em>before</em> this load.
+        If it observes a value written by a release, everything that happened-before the release becomes visible
+        here.</li>
+      </ul>
+
+      <div class="hb-diagram">
+        <div class="hb-thread">
+          <div class="thread-label">Thread A (producer)</div>
+          <div class="hb-step">data = 42;</div>
+          <div class="hb-step release">ready.store(true, release)</div>
+        </div>
+        <div class="hb-thread">
+          <div class="thread-label">Thread B (consumer)</div>
+          <div class="hb-step acquire">ready.load(acquire) == true</div>
+          <div class="hb-step">use(data);  // guaranteed 42</div>
+        </div>
+      </div>
+
+      <div class="code-wrap">
+        <div class="code-title"><span>publish_fixed.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">int data = 0;
+std::atomic&lt;bool&gt; ready{false};
+
+void producer() {
+    data = 42;                                      // ordinary write
+    ready.store(true, std::memory_order_release);    // publish
+}
+
+void consumer() {
+    while (!ready.load(std::memory_order_acquire));  // wait for publish
+    std::cout << data;                                // guaranteed to see 42
+}</code></pre>
+      </div>
+
+      <div class="callout">
+        <span class="label">Mental model</span>
+        <b>release</b> = seal a package before placing it on the shelf. <b>acquire</b> = don't open the package
+        until you've confirmed it's on the shelf. The synchronization only happens if the acquire actually
+        observes <em>that specific</em> release's value — a stale/older read gives no guarantee.
+      </div>
+
+      <h3 id="acqrel"><span class="tag">memory_order_acq_rel</span></h3>
+      <p class="note-body">For read-modify-write operations (<code>exchange</code>, <code>fetch_add</code>,
+      <code>compare_exchange_*</code>) that act as <em>both</em> an acquire and a release in one operation — the
+      read part behaves like <code>acquire</code>, the write part like <code>release</code>.</p>
+
+      <div class="code-wrap">
+        <div class="code-title"><span>acq_rel.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">std::atomic&lt;int&gt; state{0};
+
+// Read the current state (acquire) AND publish the new state (release)
+// in a single indivisible step.
+int old = state.exchange(1, std::memory_order_acq_rel);</code></pre>
+      </div>
+
+      <h3 id="seqcst"><span class="tag">memory_order_seq_cst</span></h3>
+      <p class="note-body">The default if you omit the argument. Gives everything <code>acq_rel</code> gives, plus a
+      single <strong>global total order</strong> that all threads agree on for every <code>seq_cst</code> operation
+      across <em>all</em> atomic variables — not just the one being operated on.</p>
+
+      <div class="callout warn">
+        <span class="label">Why it matters</span>
+        Release/acquire only orders things relative to <em>one</em> variable's synchronization edge. With multiple
+        atomics involved (e.g. two flags set by two different threads, read by a third), release/acquire alone can
+        allow surprising outcomes that <code>seq_cst</code> forbids by construction. It's the safe default —
+        strongest guarantee, easiest to reason about, at some performance cost.
+      </div>
+
+      <h3 id="consume"><span class="tag">memory_order_consume</span></h3>
+      <p class="note-body">A weaker, data-dependency-only version of <code>acquire</code>: only operations that
+      have a data dependency on the loaded value are ordered after it (not everything). In principle cheaper than
+      <code>acquire</code> on some architectures.</p>
+
+      <div class="callout warn">
+        <span class="label">In practice</span>
+        No major compiler currently implements the precise dependency-tracking semantics — they all upgrade
+        <code>consume</code> to <code>acquire</code> under the hood. The standard itself discourages its use until
+        it's revised. <strong>Don't reach for this in new code; use <code>acquire</code>.</strong>
+      </div>
+    </section>
+
+    <!-- 4. CORE OPERATIONS -->
+    <section id="operations">
+      <h2><span class="num">4</span> Core operations</h2>
+      <p class="lede">The full operation surface of <code>std::atomic</code>, independent of which memory order you
+      pick.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <span class="op-name">load / store</span>
+          <p>Plain atomic read and write. The basic building block; everything else is a variant of read-modify-write.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">exchange</span>
+          <p>Atomically replace the value and return the old one, as one indivisible step.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">compare_exchange_strong</span>
+          <p>"If it still equals <i>expected</i>, set to <i>desired</i>." The core primitive for lock-free algorithms.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">compare_exchange_weak</span>
+          <p>Same, but may fail spuriously even when the value matched — cheaper per attempt, meant for retry loops.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">fetch_add / fetch_sub</span>
+          <p>Atomic read-modify-write arithmetic. Returns the <i>old</i> value. This is what makes <code>counter++</code> safe.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">fetch_and / or / xor</span>
+          <p>Atomic bitwise read-modify-write, same shape as fetch_add.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">atomic_flag</span>
+          <p>The one type guaranteed lock-free on every platform. Minimal: <code>test_and_set</code> / <code>clear</code>.</p>
+        </div>
+        <div class="card">
+          <span class="op-name">wait / notify (C++20)</span>
+          <p>Block until the value changes, without spinning and without a separate mutex + condition_variable.</p>
+        </div>
+      </div>
+
+      <h3>compare_exchange in practice — a CAS retry loop</h3>
+      <div class="code-wrap">
+        <div class="code-title"><span>cas_loop.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">std::atomic&lt;int&gt; x{10};
+
+int old_val = x.load(std::memory_order_relaxed);
+int new_val;
+do {
+    new_val = old_val * 2;   // compute the next value from what we last saw
+} while (!x.compare_exchange_weak(
+             old_val,                       // updated with the real value on failure
+             new_val,
+             std::memory_order_release,      // ordering if the swap succeeds
+             std::memory_order_relaxed));     // ordering if it fails (just a read)</code></pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Operation</th><th>Signature shape</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>store</code></td><td><code>void store(T, order)</code></td><td>Write-only; only <code>relaxed</code>, <code>release</code>, <code>seq_cst</code> are valid here.</td></tr>
+          <tr><td><code>load</code></td><td><code>T load(order)</code></td><td>Read-only; only <code>relaxed</code>, <code>consume</code>, <code>acquire</code>, <code>seq_cst</code> are valid.</td></tr>
+          <tr><td><code>exchange</code></td><td><code>T exchange(T, order)</code></td><td>Read-modify-write; any order valid.</td></tr>
+          <tr><td><code>compare_exchange_*</code></td><td><code>bool cas(T&amp; expected, T desired, order succ, order fail)</code></td><td>Two orders — success and failure paths differ semantically.</td></tr>
+          <tr><td><code>fetch_add</code> etc.</td><td><code>T fetch_add(T, order)</code></td><td>Returns the value <i>before</i> the operation.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 5. PATTERNS -->
+    <section id="patterns">
+      <h2><span class="num">5</span> Common patterns</h2>
+      <p class="lede">How the pieces above combine in real code.</p>
+
+      <h3 id="spinlock">5.1 Spinlock with <code>atomic_flag</code></h3>
+      <div class="code-wrap">
+        <div class="code-title"><span>spinlock.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">class Spinlock {
+    std::atomic_flag flag = ATOMIC_FLAG_INIT;
+public:
+    void lock() {
+        // Spin until we're the one who flips it false -> true.
+        while (flag.test_and_set(std::memory_order_acquire))
+            ; // busy-wait
+    }
+    void unlock() {
+        flag.clear(std::memory_order_release);
+    }
+};</code></pre>
+      </div>
+      <p class="note-body"><code>acquire</code> on lock ensures nothing inside the critical section is reordered
+      before the lock is actually held; <code>release</code> on unlock ensures everything inside the critical
+      section is visible to the next thread that acquires the lock.</p>
+
+      <h3 id="publish">5.2 Publish / ready-flag (the pattern from section 2)</h3>
+      <p class="note-body">One thread builds a data structure, then flips an atomic flag with <code>release</code>;
+      consumers spin/wait on that flag with <code>acquire</code> before touching the structure. This is the single
+      most common real-world use of release/acquire — see the fixed example in <a href="#relacq">3.2</a>.</p>
+
+      <h3 id="casloop">5.3 Lock-free stack push (CAS retry loop)</h3>
+      <div class="code-wrap">
+        <div class="code-title"><span>lockfree_stack.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">template &lt;typename T&gt;
+struct Node { T value; Node* next; };
+
+template &lt;typename T&gt;
+class LockFreeStack {
+    std::atomic&lt;Node&lt;T&gt;*&gt; head{nullptr};
+public:
+    void push(T value) {
+        Node&lt;T&gt;* n = new Node&lt;T&gt;{std::move(value), nullptr};
+        n-&gt;next = head.load(std::memory_order_relaxed);
+        // Retry until no one else changed head under us.
+        while (!head.compare_exchange_weak(
+                   n-&gt;next, n,
+                   std::memory_order_release,   // publish the new node + its payload
+                   std::memory_order_relaxed))  // just re-reading head on failure
+            ; // n->next updated to current head automatically on failure
+    }
+};</code></pre>
+      </div>
+
+      <h3 id="refcount">5.4 Atomic reference counting</h3>
+      <div class="code-wrap">
+        <div class="code-title"><span>refcount.cpp</span><span class="dots"><span></span><span></span><span></span></span></div>
+        <pre><code class="language-cpp">std::atomic&lt;int&gt; refcount{1};
+
+void add_ref() {
+    // Incrementing doesn't need to synchronize with anything else yet.
+    refcount.fetch_add(1, std::memory_order_relaxed);
+}
+
+void release_ref(Object* obj) {
+    // Must synchronize: the thread doing the final delete needs to see
+    // every other thread's writes to obj before this point.
+    if (refcount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        delete obj;
+    }
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="label">Why relaxed here, acq_rel there</span>
+        Incrementing a refcount doesn't need to order anything — the object is already alive and reachable.
+        Decrementing to zero is the dangerous moment: the thread that sees the count hit zero must be guaranteed
+        to see <i>every</i> prior write from every other owner, hence the acquire component on the final
+        decrement.
+      </div>
+    </section>
+
+    <!-- 6. CHEAT SHEET -->
+    <section id="cheatsheet">
+      <h2><span class="num">6</span> Cheat sheet</h2>
+      <div class="cheat">
+        <h4>Pick an order</h4>
+        <ul>
+          <li><b>relaxed</b> — pure counters/stats; nothing else depends on the timing of this write.</li>
+          <li><b>release (store) / acquire (load)</b> — "publish a finished thing"; pair them on the same variable.</li>
+          <li><b>acq_rel</b> — read-modify-write ops that both consume prior state and publish new state (CAS, fetch_add used as a gate, refcount decrement).</li>
+          <li><b>seq_cst</b> — default; use when multiple independent atomics interact and you don't want to reason hard about it, or when in doubt.</li>
+          <li><b>consume</b> — avoid; compilers treat it as acquire anyway.</li>
+        </ul>
+
+        <h4>Rules of thumb</h4>
+        <ul>
+          <li>Atomicity ≠ ordering. <code>relaxed</code> gives you the former only.</li>
+          <li>A release/acquire pair only synchronizes if the acquire actually observes <em>that</em> release's value.</li>
+          <li>Use <code>compare_exchange_weak</code> in loops (cheaper, spurious failures expected); use <code>_strong</code> outside loops.</li>
+          <li><code>fetch_add</code>/<code>exchange</code>/CAS return the value <i>before</i> the update.</li>
+          <li>x86 is strongly-ordered by default, so bugs from missing acquire/release often only surface on ARM/POWER — don't rely on "it worked on my machine."</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>Atomics &amp; Memory Order — reference notes</footer>
+  </main>
+
+</div>
+
+<script>
+  hljs.highlightAll();
+</script>
+</body>
+</html>
