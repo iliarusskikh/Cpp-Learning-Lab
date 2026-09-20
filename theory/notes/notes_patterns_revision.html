@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C++ Coding Patterns — Revision Notes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117;
+    --bg-elev:#111826;
+    --card:#161b22;
+    --card-hover:#1c232d;
+    --border:#2a323c;
+    --text:#c9d1d9;
+    --text-dim:#8b949e;
+    --text-faint:#6e7681;
+    --accent:#58a6ff;
+    --code-bg:#0a0e14;
+    --radius:10px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;
+    display:flex;
+    min-height:100vh;
+  }
+
+  /* ---------- Sidebar ---------- */
+  nav.sidebar{
+    width:250px;
+    flex-shrink:0;
+    background:var(--bg-elev);
+    border-right:1px solid var(--border);
+    padding:28px 18px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+  }
+  nav.sidebar h1{
+    font-size:1.05rem;
+    color:var(--text);
+    margin:0 0 4px 0;
+    letter-spacing:.3px;
+  }
+  nav.sidebar .sub{
+    font-size:.75rem;
+    color:var(--text-faint);
+    margin-bottom:22px;
+  }
+  nav.sidebar ol{
+    list-style:none;
+    padding:0;
+    margin:0;
+    counter-reset:navcount;
+  }
+  nav.sidebar li{ margin-bottom:2px; }
+  nav.sidebar a{
+    counter-increment:navcount;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    text-decoration:none;
+    color:var(--text-dim);
+    font-size:.87rem;
+    padding:8px 10px;
+    border-radius:8px;
+    transition:background .15s, color .15s;
+  }
+  nav.sidebar a::before{
+    content:counter(navcount, decimal-leading-zero);
+    font-family:'SFMono-Regular',Consolas,monospace;
+    font-size:.72rem;
+    color:var(--text-faint);
+    width:20px;
+  }
+  nav.sidebar a:hover{ background:var(--card-hover); color:var(--text); }
+  nav.sidebar a.active{ background:rgba(88,166,255,.12); color:var(--accent); }
+  nav.sidebar a.active::before{ color:var(--accent); }
+
+  /* ---------- Main ---------- */
+  main{
+    flex:1;
+    padding:44px 48px 100px;
+    max-width:920px;
+  }
+  header.page-head{
+    margin-bottom:44px;
+    padding-bottom:26px;
+    border-bottom:1px solid var(--border);
+  }
+  header.page-head h1{
+    font-size:2rem;
+    margin:0 0 8px 0;
+    background:linear-gradient(90deg,#58a6ff,#79c0ff 60%,#a5d6ff);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  header.page-head p{
+    color:var(--text-dim);
+    margin:0;
+    font-size:.95rem;
+  }
+
+  section.pattern{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:30px 34px 34px;
+    margin-bottom:34px;
+    scroll-margin-top:24px;
+    border-left:3px solid var(--accent-color, var(--accent));
+  }
+  .pattern-header{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:6px;
+  }
+  .pattern-num{
+    font-family:'SFMono-Regular',Consolas,monospace;
+    color:var(--accent-color, var(--accent));
+    font-size:.95rem;
+    opacity:.75;
+  }
+  .pattern-header h2{
+    margin:0;
+    font-size:1.5rem;
+    color:#f0f6fc;
+  }
+  .tagline{
+    color:var(--text-dim);
+    font-style:italic;
+    margin:0 0 18px 0;
+    font-size:.92rem;
+  }
+  .badges{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+  .badge{
+    font-size:.72rem;
+    padding:4px 10px;
+    border-radius:20px;
+    background:rgba(88,166,255,.1);
+    color:var(--accent-color, var(--accent));
+    border:1px solid rgba(88,166,255,.25);
+    font-family:'SFMono-Regular',Consolas,monospace;
+  }
+  section.pattern h3{
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:1.2px;
+    color:var(--text-faint);
+    margin:22px 0 10px 0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  section.pattern h3::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+  section.pattern p{ margin:0 0 10px 0; color:var(--text); }
+  section.pattern ul, section.pattern ol{
+    margin:0 0 6px 0;
+    padding-left:22px;
+    color:var(--text);
+  }
+  section.pattern li{ margin-bottom:6px; }
+  section.pattern li::marker{ color:var(--accent-color, var(--accent)); }
+
+  .problem-box{
+    background:var(--bg-elev);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:14px 16px;
+    margin:8px 0 16px 0;
+  }
+  .problem-box .label{
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--accent-color, var(--accent));
+    font-weight:600;
+    margin-bottom:6px;
+    display:block;
+  }
+
+  pre{
+    margin:0 0 12px 0;
+    border-radius:8px;
+    border:1px solid var(--border);
+    overflow-x:auto;
+  }
+  pre code.hljs{
+    padding:16px 18px !important;
+    background:var(--code-bg) !important;
+    font-size:.83rem;
+    line-height:1.55;
+    font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    display:block;
+  }
+  .complexity{
+    display:inline-flex;
+    gap:16px;
+    font-family:'SFMono-Regular',Consolas,monospace;
+    font-size:.78rem;
+    color:var(--text-dim);
+    background:var(--bg-elev);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:8px;
+  }
+  .complexity b{ color:#7ee787; }
+
+  .pitfall{
+    border-left:3px solid #f78166;
+    background:rgba(247,129,102,.07);
+    padding:10px 14px;
+    border-radius:0 6px 6px 0;
+    font-size:.87rem;
+    color:var(--text-dim);
+    margin:0 0 16px 0;
+  }
+  .pitfall b{ color:#f78166; }
+
+  code:not(.hljs){
+    background:rgba(110,118,129,.15);
+    padding:1px 6px;
+    border-radius:5px;
+    font-family:'SFMono-Regular',Consolas,monospace;
+    font-size:.87em;
+    color:#ffa657;
+  }
+
+  footer{
+    text-align:center;
+    color:var(--text-faint);
+    font-size:.8rem;
+    padding-top:20px;
+    border-top:1px solid var(--border);
+  }
+
+  @media (max-width: 860px){
+    body{ flex-direction:column; }
+    nav.sidebar{ width:100%; height:auto; position:relative; }
+    main{ padding:28px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <h1>C++ Patterns</h1>
+  <div class="sub">Revision notes · 9 core patterns</div>
+  <ol id="toc">
+    <li><a href="#hashing">Hashing</a></li>
+    <li><a href="#two-pointers">Two Pointers</a></li>
+    <li><a href="#sliding-window">Sliding Window</a></li>
+    <li><a href="#binary-search">Binary Search</a></li>
+    <li><a href="#monotonic-stack">Monotonic Stack</a></li>
+    <li><a href="#dfs-bfs">DFS &amp; BFS</a></li>
+    <li><a href="#top-k-heaps">Top K / Heaps</a></li>
+    <li><a href="#backtracking">Backtracking</a></li>
+    <li><a href="#dp">Dynamic Programming</a></li>
+  </ol>
+</nav>
+
+<main>
+  <header class="page-head">
+    <h1>C++ Coding Patterns</h1>
+    <p>Nine recurring patterns behind most algorithmic problems — concept, recognition cues, the standard approach, and one worked problem with C++ code, for quick revision.</p>
+  </header>
+
+  <!-- 1. HASHING -->
+  <section class="pattern" id="hashing" style="--accent-color:#58a6ff;">
+    <div class="pattern-header"><span class="pattern-num">01</span><h2>Hashing</h2></div>
+    <p class="tagline">Trade space for near-constant-time lookups.</p>
+    <div class="badges">
+      <span class="badge">unordered_map</span><span class="badge">unordered_set</span>
+      <span class="badge">O(1) avg access</span>
+    </div>
+
+    <h3>Concept</h3>
+    <p>A hash table maps keys to buckets via a hash function, giving average <b>O(1)</b> insert, lookup, and delete. In C++, <code>unordered_map</code> and <code>unordered_set</code> implement this. The core idea in problem-solving: instead of scanning the array again to check "have I seen this value / does its complement exist", store what you've seen in a map as you go, so each lookup is O(1) instead of O(n).</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>Phrases like "have you seen this before", "does a pair/complement exist", "check duplicates".</li>
+      <li>Counting frequencies of elements/characters.</li>
+      <li>Grouping items by some derived key (e.g. sorted string for anagrams).</li>
+      <li>A brute-force nested loop (O(n²)) is checking existence inside the inner loop — that inner check is almost always replaceable with a map.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Decide what the <b>key</b> should be (raw value, sorted signature, tuple, prefix sum…).</li>
+      <li>Decide what the <b>value</b> should store (index, count, list of indices…).</li>
+      <li>Single pass: for each element, first check the map for what you need, <i>then</i> insert/update the current element (order matters to avoid using an element against itself).</li>
+    </ol>
+
+    <div class="pitfall"><b>Pitfall:</b> inserting the current element before checking for its complement can cause a value to pair with itself. Also remember <code>unordered_map</code> has no ordering guarantee — if order matters, you still need something else (e.g. an array or <code>map</code>).</div>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Two Sum</span>
+      Given an array of integers <code>nums</code> and an integer <code>target</code>, return the indices of the two numbers that add up to <code>target</code>. Assume exactly one solution exists.
+    </div>
+
+    <pre><code class="language-cpp">vector&lt;int&gt; twoSum(vector&lt;int&gt;&amp; nums, int target) {
+    unordered_map&lt;int,int&gt; seen; // value -&gt; index
+    for (int i = 0; i &lt; (int)nums.size(); ++i) {
+        int complement = target - nums[i];
+        auto it = seen.find(complement);
+        if (it != seen.end()) {
+            return {it-&gt;second, i};
+        }
+        seen[nums[i]] = i;      // insert AFTER checking
+    }
+    return {}; // no solution
+}</code></pre>
+
+    <span class="complexity">Time <b>O(n)</b> &nbsp;·&nbsp; Space <b>O(n)</b></span>
+  </section>
+
+  <!-- 2. TWO POINTERS -->
+  <section class="pattern" id="two-pointers" style="--accent-color:#79c0ff;">
+    <div class="pattern-header"><span class="pattern-num">02</span><h2>Two Pointers</h2></div>
+    <p class="tagline">Walk two indices toward each other (or together) to cut O(n²) to O(n).</p>
+    <div class="badges"><span class="badge">sorted arrays</span><span class="badge">O(n)</span><span class="badge">O(1) extra space</span></div>
+
+    <h3>Concept</h3>
+    <p>Instead of comparing every pair (O(n²)), maintain two indices that move through the data structure — often from opposite ends of a <b>sorted</b> array — and use the ordering to decide which pointer to move. Each element is visited a constant number of times, giving linear time.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>Array is sorted, or can cheaply be sorted, and you need pairs/triplets matching a sum/condition.</li>
+      <li>Palindrome checks (compare from both ends inward).</li>
+      <li>Merging two sorted sequences.</li>
+      <li>In-place removal/compaction of elements (fast/slow pointer variant, same direction).</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Sort the input if order isn't already guaranteed (adds O(n log n), usually still fine).</li>
+      <li>Set <code>left = 0</code>, <code>right = n - 1</code>.</li>
+      <li>Compare <code>nums[left] + nums[right]</code> (or similar) against target: if too small, <code>++left</code>; if too large, <code>--right</code>; if equal, record and move both, skipping duplicates.</li>
+      <li>For "triplet" problems: fix one element with an outer loop, two-pointer the rest.</li>
+    </ol>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">3Sum</span>
+      Given an integer array <code>nums</code>, return all unique triplets <code>[a, b, c]</code> such that <code>a + b + c == 0</code>.
+    </div>
+
+    <pre><code class="language-cpp">vector&lt;vector&lt;int&gt;&gt; threeSum(vector&lt;int&gt;&amp; nums) {
+    sort(nums.begin(), nums.end());
+    vector&lt;vector&lt;int&gt;&gt; res;
+    int n = nums.size();
+
+    for (int i = 0; i &lt; n - 2; ++i) {
+        if (i &gt; 0 &amp;&amp; nums[i] == nums[i - 1]) continue; // skip dup anchor
+        if (nums[i] &gt; 0) break; // smallest is positive -&gt; no triplet sums to 0
+
+        int lo = i + 1, hi = n - 1;
+        while (lo &lt; hi) {
+            int sum = nums[i] + nums[lo] + nums[hi];
+            if (sum == 0) {
+                res.push_back({nums[i], nums[lo], nums[hi]});
+                while (lo &lt; hi &amp;&amp; nums[lo] == nums[lo + 1]) ++lo;
+                while (lo &lt; hi &amp;&amp; nums[hi] == nums[hi - 1]) --hi;
+                ++lo; --hi;
+            } else if (sum &lt; 0) {
+                ++lo;
+            } else {
+                --hi;
+            }
+        }
+    }
+    return res;
+}</code></pre>
+
+    <span class="complexity">Time <b>O(n&sup2;)</b> &nbsp;·&nbsp; Space <b>O(1)</b> extra (excl. output)</span>
+  </section>
+
+  <!-- 3. SLIDING WINDOW -->
+  <section class="pattern" id="sliding-window" style="--accent-color:#56d364;">
+    <div class="pattern-header"><span class="pattern-num">03</span><h2>Sliding Window</h2></div>
+    <p class="tagline">Grow and shrink a contiguous window instead of recomputing from scratch.</p>
+    <div class="badges"><span class="badge">contiguous subarray/substring</span><span class="badge">O(n)</span></div>
+
+    <h3>Concept</h3>
+    <p>Maintain a window <code>[left, right]</code> over an array or string. Expand <code>right</code> to include new elements and update window state incrementally; when the window violates a constraint, shrink from <code>left</code> until it's valid again. Because each pointer only moves forward, total work is linear instead of recomputing the window from scratch for every start position.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>"Longest / shortest / count of contiguous subarray or substring such that…"</li>
+      <li>Constraint can be checked incrementally as elements enter/leave the window (sum, distinct count, frequency map).</li>
+      <li>Fixed-size window ("every subarray of size k") or variable-size window (expand/shrink based on a condition).</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Initialise <code>left = 0</code> and any running state (sum, frequency map, distinct count).</li>
+      <li>For each <code>right</code>, add <code>s[right]</code> to the state.</li>
+      <li>While the state violates the constraint, remove <code>s[left]</code> from the state and <code>++left</code>.</li>
+      <li>Update the answer using the current window size <code>right - left + 1</code>.</li>
+    </ol>
+
+    <div class="pitfall"><b>Pitfall:</b> forgetting to update the running state when shrinking the window (e.g. decrementing a frequency count) leads to a window that looks valid but isn't.</div>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Longest Substring Without Repeating Characters</span>
+      Given a string <code>s</code>, find the length of the longest substring without repeating characters.
+    </div>
+
+    <pre><code class="language-cpp">int lengthOfLongestSubstring(string s) {
+    unordered_map&lt;char,int&gt; lastIndex; // char -&gt; last seen index
+    int left = 0, best = 0;
+
+    for (int right = 0; right &lt; (int)s.size(); ++right) {
+        char c = s[right];
+        if (lastIndex.count(c) &amp;&amp; lastIndex[c] &gt;= left) {
+            left = lastIndex[c] + 1; // jump window start past the repeat
+        }
+        lastIndex[c] = right;
+        best = max(best, right - left + 1);
+    }
+    return best;
+}</code></pre>
+
+    <span class="complexity">Time <b>O(n)</b> &nbsp;·&nbsp; Space <b>O(min(n, alphabet))</b></span>
+  </section>
+
+  <!-- 4. BINARY SEARCH -->
+  <section class="pattern" id="binary-search" style="--accent-color:#d2a8ff;">
+    <div class="pattern-header"><span class="pattern-num">04</span><h2>Binary Search</h2></div>
+    <p class="tagline">Halve a monotonic search space every step.</p>
+    <div class="badges"><span class="badge">sorted / monotonic</span><span class="badge">O(log n)</span></div>
+
+    <h3>Concept</h3>
+    <p>If a search space is sorted, or has a monotonic "yes/no" predicate (everything below some point fails, everything above succeeds — or vice versa), you can discard half the remaining space every iteration. This applies not only to searching sorted arrays, but to <b>binary search on the answer</b>: guess a value, check in O(f(n)) whether it's feasible, and narrow the range.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>Array is sorted (possibly rotated).</li>
+      <li>Asked for "first/last position such that…", or minimum/maximum value satisfying a condition.</li>
+      <li>A brute-force linear scan works, but the underlying condition is monotonic — a strong hint the answer can be binary-searched even without a sorted array in sight (e.g. minimum capacity, minimum time, square root).</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Define <code>lo</code>, <code>hi</code> bounding the search space.</li>
+      <li>Loop while <code>lo &lt;= hi</code>; compute <code>mid = lo + (hi - lo) / 2</code> (avoids overflow).</li>
+      <li>Evaluate the condition at <code>mid</code> and shrink to the half that can still contain the answer.</li>
+      <li>For rotated/complex arrays, first work out which half is "normally sorted", then check if the target lies in that half's range.</li>
+    </ol>
+
+    <div class="pitfall"><b>Pitfall:</b> off-by-one errors in the loop bound (<code>&lt;</code> vs <code>&lt;=</code>) and in updating <code>lo</code>/<code>hi</code> (<code>mid</code> vs <code>mid ± 1</code>) are the most common bugs — pick a convention and stay consistent.</div>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Search in Rotated Sorted Array</span>
+      An ascending array has been rotated at an unknown pivot. Given <code>target</code>, return its index, or -1 if absent, in O(log n).
+    </div>
+
+    <pre><code class="language-cpp">int search(vector&lt;int&gt;&amp; nums, int target) {
+    int lo = 0, hi = (int)nums.size() - 1;
+
+    while (lo &lt;= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (nums[mid] == target) return mid;
+
+        if (nums[lo] &lt;= nums[mid]) {          // left half is sorted
+            if (nums[lo] &lt;= target &amp;&amp; target &lt; nums[mid]) hi = mid - 1;
+            else lo = mid + 1;
+        } else {                                // right half is sorted
+            if (nums[mid] &lt; target &amp;&amp; target &lt;= nums[hi]) lo = mid + 1;
+            else hi = mid - 1;
+        }
+    }
+    return -1;
+}</code></pre>
+
+    <span class="complexity">Time <b>O(log n)</b> &nbsp;·&nbsp; Space <b>O(1)</b></span>
+  </section>
+
+  <!-- 5. MONOTONIC STACK -->
+  <section class="pattern" id="monotonic-stack" style="--accent-color:#ffa657;">
+    <div class="pattern-header"><span class="pattern-num">05</span><h2>Monotonic Stack</h2></div>
+    <p class="tagline">Keep a stack sorted; pop to resolve "next greater/smaller" in amortized O(1).</p>
+    <div class="badges"><span class="badge">next greater element</span><span class="badge">O(n)</span></div>
+
+    <h3>Concept</h3>
+    <p>A monotonic stack is kept strictly increasing or strictly decreasing from bottom to top. As you scan the array, whenever the current element breaks the stack's order, you pop elements off — and each pop tells you the answer for that popped element (e.g. "the next greater value is the current one"). Every element is pushed once and popped at most once, giving amortized O(n) despite the nested-looking loop.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>"Next greater / next smaller element" for every position.</li>
+      <li>"How many days until a warmer temperature" style problems.</li>
+      <li>Histogram / rectangle problems (largest rectangle in histogram, trapping rain water).</li>
+      <li>Any brute force that, for each element, scans forward/backward until a bigger/smaller value is found.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Iterate through the array, keeping a stack of <b>indices</b> (not values, so you can compute distances).</li>
+      <li>While the stack is non-empty and the top's value violates the monotonic property against the current value, pop it and record the answer for that popped index using the current index.</li>
+      <li>Push the current index.</li>
+      <li>Anything left on the stack at the end has no answer (e.g. remains 0 / -1).</li>
+    </ol>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Daily Temperatures</span>
+      Given daily temperatures, return an array where <code>answer[i]</code> is the number of days you'd have to wait after day <code>i</code> for a warmer temperature, or 0 if none exists.
+    </div>
+
+    <pre><code class="language-cpp">vector&lt;int&gt; dailyTemperatures(vector&lt;int&gt;&amp; T) {
+    int n = T.size();
+    vector&lt;int&gt; res(n, 0);
+    stack&lt;int&gt; st; // indices, temps decreasing bottom -&gt; top
+
+    for (int i = 0; i &lt; n; ++i) {
+        while (!st.empty() &amp;&amp; T[st.top()] &lt; T[i]) {
+            int idx = st.top(); st.pop();
+            res[idx] = i - idx;
+        }
+        st.push(i);
+    }
+    return res;
+}</code></pre>
+
+    <span class="complexity">Time <b>O(n)</b> amortized &nbsp;·&nbsp; Space <b>O(n)</b></span>
+  </section>
+
+  <!-- 6. DFS & BFS -->
+  <section class="pattern" id="dfs-bfs" style="--accent-color:#f778ba;">
+    <div class="pattern-header"><span class="pattern-num">06</span><h2>DFS &amp; BFS</h2></div>
+    <p class="tagline">Go deep first, or go wide level-by-level.</p>
+    <div class="badges"><span class="badge">trees / graphs / grids</span><span class="badge">O(V + E)</span></div>
+
+    <h3>Concept</h3>
+    <p><b>DFS</b> (depth-first search) explores as far as possible down one branch before backtracking — implemented with recursion or an explicit stack. <b>BFS</b> (breadth-first search) explores level by level using a queue, and is the go-to when you need the <i>shortest path in an unweighted graph</i>, since it discovers nodes in increasing order of distance from the source.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>Trees, graphs, or 2D grids/matrices (flood fill, islands, maze problems).</li>
+      <li>Connected components / "how many separate groups".</li>
+      <li>Shortest path or minimum number of steps in an unweighted graph → BFS.</li>
+      <li>Explore all paths, or "does a path exist" without needing the shortest one → DFS is usually simpler.</li>
+      <li>Level-order traversal, or "minimum depth" → BFS.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li><b>DFS:</b> recursive (or stack-based) function that marks the current node visited, then recurses into each unvisited neighbour.</li>
+      <li><b>BFS:</b> push the start node into a queue and mark visited; while the queue isn't empty, pop the front, push all unvisited neighbours (marking them visited <i>at push time</i> to avoid duplicates), optionally tracking distance/level.</li>
+      <li>For grids, neighbours are typically the 4 (or 8) adjacent cells with bounds checking.</li>
+    </ol>
+
+    <div class="pitfall"><b>Pitfall:</b> in BFS, mark a node visited when you <i>enqueue</i> it, not when you dequeue it — otherwise the same node can be added to the queue multiple times.</div>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Number of Islands</span>
+      Given an <code>m x n</code> grid of <code>'1'</code>s (land) and <code>'0'</code>s (water), return the number of islands (connected groups of land, 4-directionally).
+    </div>
+
+    <pre><code class="language-cpp">int numIslands(vector&lt;vector&lt;char&gt;&gt;&amp; grid) {
+    if (grid.empty()) return 0;
+    int rows = grid.size(), cols = grid[0].size();
+    int count = 0;
+
+    function&lt;void(int,int)&gt; dfs = [&amp;](int r, int c) {
+        if (r &lt; 0 || r &gt;= rows || c &lt; 0 || c &gt;= cols || grid[r][c] != '1') return;
+        grid[r][c] = '0'; // mark visited in place
+        dfs(r + 1, c); dfs(r - 1, c);
+        dfs(r, c + 1); dfs(r, c - 1);
+    };
+
+    for (int r = 0; r &lt; rows; ++r) {
+        for (int c = 0; c &lt; cols; ++c) {
+            if (grid[r][c] == '1') {
+                ++count;
+                dfs(r, c);
+            }
+        }
+    }
+    return count;
+}
+// BFS variant: replace dfs(r, c) with a queue&lt;pair&lt;int,int&gt;&gt; that
+// pushes the start cell, marks it visited, then pops and pushes
+// unvisited '1' neighbours until empty.</code></pre>
+
+    <span class="complexity">Time <b>O(rows &times; cols)</b> &nbsp;·&nbsp; Space <b>O(rows &times; cols)</b> (recursion stack / queue)</span>
+  </section>
+
+  <!-- 7. TOP K / HEAPS -->
+  <section class="pattern" id="top-k-heaps" style="--accent-color:#ffd33d;">
+    <div class="pattern-header"><span class="pattern-num">07</span><h2>Top K with Heaps</h2></div>
+    <p class="tagline">Keep only the k elements you need, not the whole sorted list.</p>
+    <div class="badges"><span class="badge">priority_queue</span><span class="badge">O(n log k)</span></div>
+
+    <h3>Concept</h3>
+    <p><code>priority_queue</code> is a binary heap giving O(log k) push/pop and O(1) peek at the top. Rather than sorting the entire input in O(n log n) to find the top k elements, maintain a heap of size k as you scan: O(n log k), which is meaningfully cheaper when k ≪ n.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>"Kth largest / smallest element", "top k frequent", "k closest points".</li>
+      <li>You only need a bounded number of "best" items, not a full ordering.</li>
+      <li>Streaming / online data where you must maintain top-k as elements arrive.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>For "top k largest": use a <b>min-heap</b> of size k. Push each element; if size exceeds k, pop the minimum. What remains is the k largest, with the smallest of them on top.</li>
+      <li>For "top k smallest": use a <b>max-heap</b> the same way (or negate values in a min-heap).</li>
+      <li>For "top k frequent": first build a frequency map, then heap on (count, value) pairs.</li>
+      <li>C++ default <code>priority_queue&lt;T&gt;</code> is a max-heap; pass <code>greater&lt;T&gt;</code> as the comparator for a min-heap.</li>
+    </ol>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Kth Largest Element in an Array</span>
+      Given an integer array <code>nums</code> and integer <code>k</code>, return the k-th largest element (not the k-th distinct one).
+    </div>
+
+    <pre><code class="language-cpp">int findKthLargest(vector&lt;int&gt;&amp; nums, int k) {
+    priority_queue&lt;int, vector&lt;int&gt;, greater&lt;int&gt;&gt; minHeap; // size stays <= k
+
+    for (int num : nums) {
+        minHeap.push(num);
+        if ((int)minHeap.size() &gt; k) {
+            minHeap.pop(); // discard current smallest
+        }
+    }
+    return minHeap.top(); // smallest of the k largest = the k-th largest
+}</code></pre>
+
+    <span class="complexity">Time <b>O(n log k)</b> &nbsp;·&nbsp; Space <b>O(k)</b></span>
+  </section>
+
+  <!-- 8. BACKTRACKING -->
+  <section class="pattern" id="backtracking" style="--accent-color:#ff7b72;">
+    <div class="pattern-header"><span class="pattern-num">08</span><h2>Backtracking</h2></div>
+    <p class="tagline">Choose, explore, undo — DFS over the space of partial solutions.</p>
+    <div class="badges"><span class="badge">permutations / combinations</span><span class="badge">exponential, pruned</span></div>
+
+    <h3>Concept</h3>
+    <p>Backtracking is DFS over a decision tree of partial candidates: at each step you make a choice, recurse to extend the candidate, and then <b>undo</b> the choice ("backtrack") before trying the next option. The key advantage over brute force is <b>pruning</b> — abandoning a branch immediately once it can no longer lead to a valid solution, instead of building it out fully first.</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>"Generate all…", "return all possible…" — permutations, combinations, subsets, partitions.</li>
+      <li>Constraint-satisfaction puzzles: N-Queens, Sudoku, word search on a grid.</li>
+      <li>The answer requires exploring a combinatorial space, but invalid branches can be detected early.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li>Write a recursive function with the current partial solution (often a <code>vector</code> passed by reference, mutated in place) and a "start index" or remaining state.</li>
+      <li>Base case: partial solution is complete → record a copy of it.</li>
+      <li>For each candidate choice at this step: if it's invalid/prunable, <code>continue</code>; otherwise add it to the path, recurse, then remove it (<code>pop_back</code>) — this undo step is what makes it "backtracking".</li>
+      <li>Use a start index to avoid re-generating the same combination in a different order; sort input first if you need to skip duplicates or prune early (e.g. <code>if (candidate &gt; remaining) break;</code>).</li>
+    </ol>
+
+    <div class="pitfall"><b>Pitfall:</b> forgetting to undo the choice (e.g. missing <code>path.pop_back()</code>) leaves stale state that corrupts every subsequent branch.</div>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Combination Sum</span>
+      Given distinct integers <code>candidates</code> and a target, return all unique combinations where the chosen numbers (each usable unlimited times) sum to <code>target</code>.
+    </div>
+
+    <pre><code class="language-cpp">void backtrack(vector&lt;int&gt;&amp; candidates, int target, int start,
+                vector&lt;int&gt;&amp; path, vector&lt;vector&lt;int&gt;&gt;&amp; res) {
+    if (target == 0) {
+        res.push_back(path);
+        return;
+    }
+    for (int i = start; i &lt; (int)candidates.size(); ++i) {
+        if (candidates[i] &gt; target) break; // pruning (candidates sorted)
+
+        path.push_back(candidates[i]);
+        backtrack(candidates, target - candidates[i], i, path, res); // i, not i+1: reuse allowed
+        path.pop_back();                                             // undo
+    }
+}
+
+vector&lt;vector&lt;int&gt;&gt; combinationSum(vector&lt;int&gt;&amp; candidates, int target) {
+    sort(candidates.begin(), candidates.end()); // enables the break-based prune
+    vector&lt;vector&lt;int&gt;&gt; res;
+    vector&lt;int&gt; path;
+    backtrack(candidates, target, 0, path, res);
+    return res;
+}</code></pre>
+
+    <span class="complexity">Time <b>exponential</b>, pruned in practice &nbsp;·&nbsp; Space <b>O(target)</b> recursion depth</span>
+  </section>
+
+  <!-- 9. DYNAMIC PROGRAMMING -->
+  <section class="pattern" id="dp" style="--accent-color:#7ee787;">
+    <div class="pattern-header"><span class="pattern-num">09</span><h2>Dynamic Programming</h2></div>
+    <p class="tagline">Solve overlapping subproblems once, reuse the answer everywhere else.</p>
+    <div class="badges"><span class="badge">memoization</span><span class="badge">tabulation</span></div>
+
+    <h3>Concept</h3>
+    <p>DP applies when a problem has <b>optimal substructure</b> (the optimal solution is built from optimal solutions to subproblems) and <b>overlapping subproblems</b> (the same subproblem recurs many times in a naive recursion). Instead of recomputing it, store the result once — either <b>top-down</b> (recursion + memoization cache) or <b>bottom-up</b> (iterative table, "tabulation").</p>
+
+    <h3>How to recognise</h3>
+    <ul>
+      <li>"Count the number of ways to…", "minimum/maximum cost/profit to…", "can we reach/partition into…".</li>
+      <li>A brute-force recursive solution exists but is exponential because it re-solves identical subproblems.</li>
+      <li>The problem involves making a sequence of decisions (over an array, string, or grid) where each decision's cost/benefit depends on prior decisions.</li>
+    </ul>
+
+    <h3>Common approach</h3>
+    <ol>
+      <li><b>Define the state</b>: what small set of parameters uniquely identifies a subproblem (e.g. "amount remaining", "index in string + index in other string").</li>
+      <li><b>Write the recurrence</b>: express the state's answer in terms of smaller states.</li>
+      <li><b>Base cases</b>: the smallest subproblems with known answers.</li>
+      <li><b>Choose direction</b>: top-down recursion with a memo (easier to derive from the recurrence) or bottom-up table (usually faster, avoids recursion overhead/stack limits).</li>
+      <li><b>Optimize space</b> if the recurrence only depends on the last one or two rows/states — collapse the table to O(1) or O(n) instead of O(n²).</li>
+    </ol>
+
+    <h3>Example problem</h3>
+    <div class="problem-box">
+      <span class="label">Coin Change</span>
+      Given coin denominations <code>coins</code> and an amount, return the fewest number of coins needed to make up that amount, or -1 if impossible.
+    </div>
+
+    <pre><code class="language-cpp">int coinChange(vector&lt;int&gt;&amp; coins, int amount) {
+    // dp[a] = fewest coins to make amount 'a'
+    vector&lt;int&gt; dp(amount + 1, amount + 1); // amount+1 acts as "infinity"
+    dp[0] = 0;
+
+    for (int a = 1; a &lt;= amount; ++a) {
+        for (int c : coins) {
+            if (c &lt;= a) {
+                dp[a] = min(dp[a], dp[a - c] + 1);
+            }
+        }
+    }
+    return dp[amount] &gt; amount ? -1 : dp[amount];
+}</code></pre>
+
+    <span class="complexity">Time <b>O(amount &times; coins)</b> &nbsp;·&nbsp; Space <b>O(amount)</b></span>
+  </section>
+
+  <footer>C++ Coding Patterns — Revision Notes</footer>
+</main>
+
+<script>
+  hljs.highlightAll();
+
+  // Highlight active section in sidebar while scrolling
+  const links = document.querySelectorAll('nav.sidebar a');
+  const sections = document.querySelectorAll('section.pattern');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.getAttribute('id');
+      const link = document.querySelector(`nav.sidebar a[href="#${id}"]`);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
