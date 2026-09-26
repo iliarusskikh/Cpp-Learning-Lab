@@ -50,8 +50,7 @@ std::vector<std::string> get_fraud_id(const std::vector<std::string>& uid, int t
 
     // cannot iterate through map
     // Sort descending numerically (safest with stoull to avoid overflow)
-    sort(result.begin(), result.end(),
-         [](const std::string& a, const std::string& b) {
+    sort(result.begin(), result.end(), [](const std::string& a, const std::string& b) {
              return stoull(a) > stoull(b);
          });
     
