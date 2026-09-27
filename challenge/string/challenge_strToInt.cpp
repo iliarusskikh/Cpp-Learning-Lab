@@ -45,3 +45,27 @@ int main() {
     cout << myAtoi(s);
     return 0;
 }
+
+/*
+ 
+ #include <iostream>
+ #include <sstream>
+ #include <string>
+
+ int main() {
+     const int i_val = 20;
+     const float f_val = 30.5f;
+
+     std::stringstream ss;
+     ss << i_val;
+     std::string from_stream;
+     ss >> from_stream;
+
+     const std::string from_to_string = std::to_string(f_val);
+     const int parsed = std::stoi("345");
+
+     std::cout << from_stream << ' ' << from_to_string << ' ' << parsed << '\n';
+     return 0;
+ }
+
+ */
