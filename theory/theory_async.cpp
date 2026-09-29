@@ -144,9 +144,6 @@ int main()
         //safe to call get();
     }
 
-    
-    
-    
-    return EXIT_SUCCESS;
+    return 0;
 }
 
