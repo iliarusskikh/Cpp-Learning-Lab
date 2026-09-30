@@ -26,6 +26,13 @@ int main()
     
     t1.join();
     t2.join();
+    
+    
+    std::atomic_flag flag1 = ATOMIC_FLAG_INIT; //cannot be init with bool
+    std::cout << "previous flag value: " << flag1.test_and_set() << "\n";
+    flag1.clear(); //resets to 0
+    
+    
     return 0;
 }
 //allows synchronising threads without busy-waiting.
