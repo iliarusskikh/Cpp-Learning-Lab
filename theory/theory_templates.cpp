@@ -1,9 +1,30 @@
 // C++ Program to demonstrate
 // Use of template
 //type safety at compile time
-
+#include <atomics>
+#include <concepts>
 #include <iostream>
 using namespace std;
+
+
+template<typename T>
+concept SupportsLessThan = requires (T x) {x < x; } //concepts
+
+template<typename T>
+requires std::copyable<T> && SupportsLessThan<T>
+auto mymaxx(T a, T b){
+    return b < a ? a : b;
+}
+// atomics not copy/move
+
+
+template<typename T, typename... Types>
+void print(T firstArg, Types... args){
+    std::cout <<firstArg << '\n';
+    if constexpr(sizeof...(args)>0){
+        print(args...);
+    }
+}
 
 
 //class tempalte
@@ -118,108 +139,45 @@ int main()
 }
 
 
-//template <int N>
-//class A {
-//   int arr[N];
-//public:
-//   virtual void fun() { cout << "A::fun()"; }
-//};
-//
-//class B : public A<2> {
-//public:
-//   void fun() { cout << "B::fun()"; }
-//};
-//
-//class C : public B { };
-//
-//int main() {
-//   A<2> *a = new C;
-//   a->fun();
-//   return 0;
-//}
-
-
-
 
 /*
+ #include <cstddef>
  #include <iostream>
- using namespace std;
+ #include <string>
 
- template <class T, int max>
- int arrMin(T arr[], int n)
- {
-    int m = max;
-    for (int i = 0; i < n; i++)
-       if (arr[i] < m)
-          m = arr[i];
-
-    return m;
+ template <typename T>
+ void Swap(T& a, T& b) {
+     T temp = a;
+     a = b;
+     b = temp;
  }
 
- int main()
- {
-    int arr1[]  = {10, 20, 15, 12};
-    int n1 = sizeof(arr1)/sizeof(arr1[0]);
-
-    char arr2[] = {1, 2, 3};
-    int n2 = sizeof(arr2)/sizeof(arr2[0]);
-
-    cout << arrMin<int, 10000>(arr1, n1) << endl;
-    cout << arrMin<char, 256>(arr2, n2);
-    return 0;
- }
- */
-
-
-//specialisation
-/*
- #include <iostream>
- using namespace std;
-
- template <class T>
- T max (T &a, T &b)
- {
-     return (a > b)? a : b;
- }
-
- template <>
- int max <int> (int &a, int &b)
- {
-     cout << "Called ";
-     return (a > b)? a : b;
- }
-
- int main ()
- {
-     int a = 10, b = 20;
-     cout << max <int> (a, b);
- }
- 
- */
-
-
-
-
-
-/*
- 
- #include <iostream>
-
- template<typename T, size_t S>
- class Array
- {
+ template <typename T, std::size_t S>
+ class Array {
  public:
-     int Size() const {return S;}
+     constexpr std::size_t Size() const { return S; }
+     T& operator[](std::size_t i) { return m_Data[i]; }
+     const T& operator[](std::size_t i) const { return m_Data[i]; }
 
  private:
-     T m_Data[S];
+     T m_Data[S]{};
  };
 
+ int main() {
+     int a = 3;
+     int b = 7;
+     Swap(a, b);
+     std::cout << a << ' ' << b << '\n';
 
- int main()
- {
-     int size = 5;
-     Array<int,5> data;
+     std::string x = "hi";
+     std::string y = "yo";
+     Swap(x, y);
+     std::cout << x << ' ' << y << '\n';
+
+     Array<int, 5> data;
+     data[0] = 42;
+     static_assert(data.Size() == 5, "unexpected size");
+     std::cout << data.Size() << ' ' << data[0] << '\n';
      return 0;
  }
 
