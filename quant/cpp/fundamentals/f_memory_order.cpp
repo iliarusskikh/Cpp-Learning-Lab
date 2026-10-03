@@ -5,11 +5,6 @@
 //   std::memory_order_release
 //   std::memory_order_acquire
 //
-// Build:  g++ -std=c++20 -O2 -pthread memory_order_demo.cpp -o demo
-// Run:    ./demo
-//
-// -----------------------------------------------------------------------
-// Mental model
 // -----------------------------------------------------------------------
 // - relaxed: the operation on the atomic itself is still atomic (no torn
 //   reads/writes, and all threads agree on a single modification order
@@ -24,7 +19,6 @@
 //   that later performs a matching acquire load and observes this
 //   store's value (or a later value in the release sequence).
 //release (store) is a barrier for everything before it in program order — none of those earlier operations can be reordered to happen after the release.
-
 // - acquire (on a load): if the value read was written by a release
 //   store (or a later store in its release sequence), then every write
 //   that happened-before that release store is now guaranteed visible to
@@ -59,7 +53,7 @@ void demo_relaxed()
     std::atomic<long> counter{0};
     constexpr int num_threads = 8;
     constexpr int increments_per_thread = 100'000;
-
+    
     std::vector<std::thread> workers;
     for (int t = 0; t < num_threads; ++t) {
         workers.emplace_back([&counter]() {
