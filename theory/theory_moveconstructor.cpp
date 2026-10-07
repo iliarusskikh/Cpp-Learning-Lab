@@ -118,5 +118,5 @@ int main(){
     
     //types that can only be moved, not copied : unique_ptr, thread, future, promise
     
-    return EXIT_SUCCESS;
+    return 0;
 }
