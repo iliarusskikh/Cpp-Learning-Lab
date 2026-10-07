@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <functional>  // for std::function (optional but recommended)
+
 using namespace std;
 
 /*
@@ -127,21 +129,8 @@ int main()
 */
 
 /*
- 
- #include <iostream>
 
- // Some ordinary functions with the same signature
- int add(int a, int b) {
-     return a + b;
- }
 
- int subtract(int a, int b) {
-     return a - b;
- }
-
- int multiply(int a, int b) {
-     return a * b;
- }
 
  // Function that takes a function pointer as parameter
  void performOperation(int x, int y, int (*operation)(int, int)) {
@@ -180,12 +169,20 @@ int main()
  */
 
 
+// Some ordinary functions with the same signature
+int add(int a, int b) {
+    return a + b;
+}
 
+int subtract(int a, int b) {
+    return a - b;
+}
+
+int multiply(int a, int b) {
+    return a * b;
+}
  
  //new style
- 
- #include <iostream>
- #include <functional>  // for std::function (optional but recommended)
 
  void performOperation(int x, int y, std::function<int(int,int)> operation) {
      int result = operation(x, y);
@@ -212,6 +209,11 @@ int main()
      // Very compact with auto parameter (C++14+)
      performOperation(a, b, [](auto x, auto y){ return x * y * 2; }); // 80
 
+     
+     std::function<int(int,int)> fuu;
+     fuu = subtract;
+     fuu(5,3);
+     
      return 0;
  }
  
