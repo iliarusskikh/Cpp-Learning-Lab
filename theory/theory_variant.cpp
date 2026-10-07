@@ -52,8 +52,6 @@ int main()
         std::cout << get<std::string>(data);
     }
     
-    
-    
-    return EXIT_SUCCESS;
+    return 0;
 }
 
