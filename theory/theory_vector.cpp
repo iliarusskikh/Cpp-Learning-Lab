@@ -22,7 +22,10 @@ void know_algos(){
 
 int main() {
     vector<char> v = {'a', 'c', 'f', 'd', 'z'};
-
+    
+    auto print_v = [](char n){std::cout << n << ",";};
+    std::for_each(begin(v), end(v),print_v);
+    
     // Deleting last element 'z'
       v.pop_back();
       for (int i = 0; i < v.size(); i++) {
@@ -198,13 +201,10 @@ auto it_if = std::find_if(vec.begin(), vec.end(),
      vector<int> v2(v1.size());
 
      // Incrementing all elements of vector by 1
-     transform(v1.begin(), v1.end(), v2.begin(),
-               [](int a) {
-                 return a + 1;
-               });
+     transform(v1.begin(), v1.end(), v2.begin(), [](int a) {return a + 1;});
 
      for (auto i : v2)
-         cout << i << " ";
+        cout << i << " ";
      return 0;
  }
  */
