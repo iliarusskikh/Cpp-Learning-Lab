@@ -1,16 +1,28 @@
 //releases unused memory, useful after elements release
 #include <iostream>
 #include <source_location>
-//allows getting info about call function, including line of the code, etc
+#include <string_view>
 
-void logMessage(const std::string& message, std::source_location loc = std::source_location::current())
+// The default argument is evaluated at the call site, so loc holds the caller's location.
+void log(std::string_view msg,
+         const std::source_location loc = std::source_location::current())
 {
-    std::cout <<"File " <<loc.file_name() << loc.line() << loc.function_name() << message;
-    
+    std::cout << loc.file_name() << ":" << loc.line() << ":" << loc.column()
+              << " [" << loc.function_name() << "] " << msg << '\n';
+}
+
+// The old way: needs a macro to capture the call site.
+#define LOG_OLD(msg) \
+    std::cout << __FILE__ << ":" << __LINE__ << " " << msg << '\n'
+
+void compute()
+{
+    log("inside compute");          // reports this line, in compute()
+    LOG_OLD("same thing, old way"); // reports this line via macros
 }
 
 int main()
 {
-    logMessage("Error in the code");
-    return 0;
+    log("hello from main");
+    compute();
 }
