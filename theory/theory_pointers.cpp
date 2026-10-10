@@ -87,6 +87,10 @@ int main(){
     p0 = p;
     std::cout << p0 << "\n";
     
+    int x = 9;
+    void* ptr = &x; // Store the address of x in a void pointer
+    std::cout << "value of ptr " << (*(int*)(ptr))<< "\n"; //dereferencing
+    
     //pointer to pointer
     int **q = &p;
     //*q = address of b
