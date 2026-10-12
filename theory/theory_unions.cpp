@@ -1,6 +1,5 @@
 #include <iostream>
 
-
 struct Entity{
     union
     {
@@ -33,7 +32,11 @@ struct Vector4
     };
 }
 
-
+union Data {
+    int i;
+    float f;
+    char c;
+};
 
 int main()
 {
@@ -42,6 +45,13 @@ int main()
     std::cout << u.a<< " " <<u.b << std::endl;
     //u.b is int representation of a
     
+    Data data{};
+    data.i = 42;
+    std::cout << "int " << data.i << '\n';
+    data.f = 3.14f;
+    std::cout << "float " << data.f << '\n';
+    data.c = 'Z';
+    std::cout << "char " << data.c << '\n';
     
-    return EXIT_SUCCESS;
+    return 0;
 }
