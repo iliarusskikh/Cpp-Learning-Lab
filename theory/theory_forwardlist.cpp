@@ -97,7 +97,13 @@ int main()
     
     //.merge can be used for sorted
     
+    forward_list<int> numbers4 = { 10, 20, 30, 40, 50 };
+    auto pos = begin(numbers4);
+    int distance = std::distance(begin(numbers4),end(numbers4));
     
-    return EXIT_SUCCESS;
+    std::advance(pos, distance-1);
+    numbers4.insert_after(pos,5);//insert in the end
+    
+    return 0;
 }
 
