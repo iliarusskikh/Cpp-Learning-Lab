@@ -13,18 +13,18 @@ weak_ptr
 int main() {
     
     // Pointer declaration
-    auto_ptr<int> ptr1(new int(10));
-    cout << *ptr1 << endl;
+    std::auto_ptr<int> ptr1(new int(10));
+    std::cout << *ptr1 << endl;
     
     // Transfer ownership to
     // pointer ptr2,
-    auto_ptr<int> ptr2 = ptr1;
-    cout << *ptr2;
+    std::auto_ptr<int> ptr2 = ptr1;
+    std::cout << *ptr2;
     
     
     //unique_ptr stores one pointer only at a time. We cannot copy unique_ptr, only transfer ownership of the object to another unique_ptr using the move() method.
-    unique_ptr<int> P1(13)
-    unique_ptr<int> P2;
+    std::unique_ptr<int> P1(13)
+    std::unique_ptr<int> P2;
 
     // Copy the addres of P1 into p2
     P2 = move(P1);
@@ -36,12 +36,12 @@ int main() {
     
     //By using shared_ptr, more than one pointer can point to same object at a time, and it will maintain a reference counter using the use_count() method.
     
-    shared_ptr<int> P1(11)
-    shared_ptr<int> P2;
+    std::shared_ptr<int> P1(11)
+    std::shared_ptr<int> P2;
     // P1 and P2 are pointing
     // to same object
     P2 = P1;
-    cout << P1.use_count();
+    std::cout << P1.use_count();
     
     
     
@@ -57,12 +57,12 @@ int main() {
     
     // Created a weak_ptr smart pointer
     //to be used with shared ptrs
-    weak_ptr<int> P2(P1);
+    std::weak_ptr<int> P2(P1);
     // Returns the number of shared_ptr
     // objects that manage the object
-    cout << P2.use_count();
+    std::cout << P2.use_count();
     
-    
+    //if we have a shared ptr and weak ptr pointing to the same object. then if shared ptr is destroyed, weak.expired == true;
     
     
     //for classes
