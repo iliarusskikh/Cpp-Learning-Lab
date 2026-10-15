@@ -72,6 +72,27 @@ void count_visit(int id)
 }
 
 
+
+// (C++20 onwards)
+std::atomic<bool> ready{false};
+
+// Waiting thread
+void worker() {
+    // Blocks efficiently (no busy-waiting) until ready is true
+    ready.wait(false);
+    //(Spinning / Polling) - CPU burn.
+    // Do work...
+}
+
+// Signalling thread
+void publisher() {
+    ready.store(true);
+    ready.notify_one(); // Wakes up the worker thread
+}
+
+
+
+
 // ───────────────────────────────────────────────
 // MAIN – creates threads and waits for them
 // ───────────────────────────────────────────────
