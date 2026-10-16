@@ -112,8 +112,16 @@ Numeric auto multiply(Numeric auto a, Numeric auto b){
 }
 
 
+tempalte<typename Param1, typename Param2>
+auto addd(Param1 p1, Param2, p2) -> decltype(p1 + p2){
+    return p1 + p2;
+}
 
-
+#include <utility>
+tempalte<typename Param1, typename Param2>
+decltype(std::declval<Param1>()+std::declval<Param2()) addd2(Param1 p1, Param2, p2){
+    return p1 + p2;
+}
 
 int main()
 {
