@@ -1,4 +1,7 @@
 // CPP Program to implement Deque in STL
+// allocates all of its elements and its internal pointer map on the heap
+//const time for insertion, removal and access element
+//reallocated, memory in blocks
 
 #include <deque>
 #include <iostream>
@@ -38,12 +41,6 @@ int main()
     gquiz.pop_back();
     showdq(gquiz);
     
-    
-    
-    
-    
-    //const time for insertion, removal and access element
-    //reallocated, memory in blocks
     std::deque<int> dq = {10,22,59};
     dq.push_back(10);
     dq.push_front(20);
@@ -67,10 +64,13 @@ int main()
         std::cout << element << " ";
     }
     
+    // C++20 Ranges style
+    std::ranges::for_each(dq, [](int num) {
+        std::cout << num << " ";
+    });
+    
     //size()
     //empty()
     //clear()
     return 0;
 }
-
-
