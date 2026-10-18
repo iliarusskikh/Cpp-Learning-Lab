@@ -10,8 +10,6 @@
 #include <string>
 using namespace std;
 
-
-
 // function for printing the elements in a list
 void showlist(list<int> g)
 {
@@ -19,15 +17,18 @@ void showlist(list<int> g)
     for (it = g.begin(); it != g.end(); ++it)
         cout << '\t' << *it;
     cout << '\n';
+    
+    list<int>::iterator it2 = g.begin();
+    std::advance(it2, g.size()/2); //move iterator to middle position
+    //for(const auto& e: g){
+    //  std::cout << e << ",";
+    //}
 }
 
 // Driver Code
 int main()
 {
-
     list<int> gqlist1, gqlist2;
-
-    
     
     for (int i = 0; i < 10; ++i) {
         gqlist1.push_back(i * 2);
@@ -68,7 +69,7 @@ int main()
     
     /*--------------*/
     
-    std::list<int> myList ={ 10,20,30};
+    std::list<int> myList ={10,20,30};
     myList.push_back(50);
     //push_front()
     //insert()
@@ -82,7 +83,6 @@ int main()
     std::list<int> list3 = {"apple", "orange"};
     
     int first = myList.front();
-    
     
     //list iterators
     for(std::list<int>::iterator it = myList.begin(); it != myList.end(); ++it){
@@ -100,9 +100,6 @@ int main()
     //.reverse() - reverses the order of elements
     //.merge(list2) merges sorted lists
     
-    
-    
-    
-    return EXIT_SUCCESS;
+    return 0;
 }
 
