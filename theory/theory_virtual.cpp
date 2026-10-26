@@ -2,6 +2,7 @@
 //dynamic binding or late binding
 //without virtual functions a base class function would have been called
 #include <iostream>
+#include <string>
 using namespace std;
 
 class A
@@ -84,3 +85,69 @@ void print(double x){}
 
 template<typename T>
 void print(T value){}
+
+
+
+/*
+ 
+
+
+ class Instrument {
+ public:
+     virtual ~Instrument() = default;
+     virtual void MakeSound() { std::cout << "Instrument\n"; }
+ };
+
+ class Accord : public Instrument {
+ public:
+     void MakeSound() override { std::cout << "Accord\n"; }
+ };
+
+ class Piano : public Instrument {
+ public:
+     void MakeSound() override { std::cout << "Piano\n"; }
+ };
+
+ class Printable {
+ public:
+     virtual ~Printable() = default;
+     virtual std::string GetClassName() = 0;
+ };
+
+ class Entity : public Printable {
+ public:
+     virtual std::string GetName() { return "Entity"; }
+     std::string GetClassName() override { return "GetEntity"; }
+ };
+
+ class Player : public Entity {
+     std::string m_Name;
+
+ public:
+     explicit Player(const std::string& name) : m_Name(name) {}
+     std::string GetName() override { return m_Name; }
+     std::string GetClassName() override { return "GetPlayer"; }
+ };
+
+ void Print(Printable* obj) { std::cout << obj->GetClassName() << '\n'; }
+
+ int main() {
+     Instrument* i1 = new Accord();
+     Instrument* i2 = new Piano();
+     i1->MakeSound();
+     i2->MakeSound();
+     delete i1;
+     delete i2;
+
+     Entity* e = new Entity();
+     Player* p = new Player("Lolla");
+     Entity* entity = p;
+     std::cout << e->GetName() << ' ' << p->GetName() << ' ' << entity->GetName() << '\n';
+     Print(e);
+     Print(p);
+     delete e;
+     delete p;
+     return 0;
+ }
+
+ */
