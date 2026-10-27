@@ -1,19 +1,49 @@
 // C++ program to demonstrate the creation of descending
 // order set container
+// set - balanced tree (red-black tree) | logO
+// multiset - repeated items | logO
+// unordered_set - hash table(an array of buckets containing linked lists for collisions).
+
 #include <iostream>
 #include <set>
 #include <unordered_set>
+#include <algorithm>
 using namespace std;
+
+struct S{
+    int i;
+    float b;
+};
+
+struct MyHash{
+    std::size_t operator()(S const&s) const noexcept{
+        std::size_t h1 = std::hash<int>{}(s.i);
+        std::size_t h2 = std::hash<int>{}(s.b);
+        return h1 ^ (h2 << 1); //or use boost::hash_combine
+    }
+};
+
+
+struct Custom{
+    int field1;
+    int field2;
+    
+    // Constructor
+    Custom(int _field1, int _field2): field1(_field1), field2(_field2){}
+    
+    bool operator<(const Custom& rhs) const{
+        int lhs_sum = field1+field2;
+        int rhs_sum = rhs.field1_rhs.field2;
+        return lrs_sum < rhs_sum;
+    }
+};
 
 struct DescendingOrder{
     //overloading comparator
     bool operator()(const int& a, const int& b)const{
         return a>b;
     }
-}
-
-
-
+};
 
 void printDuplicates(int arr[], int n)
 {
@@ -48,6 +78,12 @@ void printDuplicates(int arr[], int n)
 
 int main()
 {
+    std::set<int> initList{1,2,3,4,5,6};
+    std::set<int> initList2{7,8,9,0};
+
+    initList2.merge(initList1);
+    
+    std::cout << initList.contains(4) << "\n"; //true/false, same as count
     //unique values only
     set<int, greater<int> > s1;
     s1.insert(10);
@@ -77,18 +113,18 @@ int main()
     }
     
     
-    
-    
-    multiset<int> q;
+    // multiset
+    std::multiset<int> q;
     q.insert(10);
     q.insert(10);
     q.insert(10);
     // it will remove only one value of
     // 10 from multiset
     q.erase(q.find(10));
-
+    q.erase(10); //otherwise it removes all instances of 10
+    
     // it will give output 2
-    cout << q.count(10) << endl;
+    std::cout << q.count(10) << endl;
     
     //.size()
     //.empty()
@@ -96,9 +132,17 @@ int main()
     //.lower_bound(10);
     
     
-    //using custom comparators
+    //using custom comparators, in case you cannot modify the class
     std::set<int, DescendingOrder> descNumbers;
     descNumbers.insert({5,19,12,11});
+    
+    //operator() within custom structure
+    std::multiset<Custom> myy;
+    Custom c0(1,3);
+    Custom c1(3,6);
+    multi.insert(c0);
+    multi.insert(c2);
+    
     
     //19,12,11,5
     for(const auto& num : descNumbers){
@@ -109,18 +153,31 @@ int main()
     
     //for unordered_set
     /*
+     //when multiple index are allocated to the same bucket, they form a linked list
      bucket_count() - number of buckets in the container
      max_bucket_count()
      bucket_size(n)
      rehash(n)
      ..
      
+     //we can iterate through all buckets
+     for(int i=0; i<s.bucket_count(); ++i){
+        std::cout << s.bucket_size(i) << "\n"; //size of the particular bucket, watch for linked-lists
+     }
      
-     
-     
-     */
+    */
+
+    //if using custom datastructure, requires operator=
+    //also HASH function needed
+    std::unordered_set<int>numbers;
+    int current = 0;
+
+    // Populates 5 elements dynamically using a mutable lambda
+    std::generate_n(std::back_inserter(numbers), 5, [current]() mutable {
+        return current += 2;
+    });
     
-    
+    std::unordered_multiset<S,MyHash,MyEq>numb;
+
     return 0;
 }
-
