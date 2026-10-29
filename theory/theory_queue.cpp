@@ -1,3 +1,5 @@
+// FIFO
+
 #include <iostream>
 #include <queue>
 
@@ -9,6 +11,7 @@ int main()
     std::queue<int> q;
 
     // ─── Construction & assignment ───
+    std::queue<int> q6({10, 20, 30});  
     std::queue<int> q2 = {10, 20, 30};         // C++11 initializer list
     q = q2;                                     // copy assignment
 
@@ -42,5 +45,5 @@ int main()
     
     
     
-    return EXIT_SUCCESS;
+    return 0;
 }
