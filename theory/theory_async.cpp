@@ -54,9 +54,6 @@ void consumer(std::future<int> future){
 }
 
 
-
-
-
 int main()
 {
     std::cout << "Main thread ID: " << std::this_thread::get_id() << "\n\n";
@@ -126,10 +123,6 @@ int main()
         std::cout << msg << "\n";
     //}
     
-
-    
-    
-
     std::cout << "\nAll tasks completed. Main exiting.\n";
     
     
