@@ -137,9 +137,6 @@ int main()
     //or resize one of the vectors,and merge into it
     
     
-    
-    
-    
     // 10. C++20 ranges version (very modern & readable)
     std::cout << "\nC++20 ranges style:\n";
 
@@ -171,7 +168,6 @@ int main()
     
     
     
-    
     //adjescent difference - current element minus previous element
     std::vector<int> v1 = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};
     std::vector<int> differences(v1.size());
@@ -180,10 +176,6 @@ int main()
     
 
     /* ----------------------- */
-    
-    
-    
-    
     
     std::vector<int> a = {1, 3, 5, 7, 9};
     std::vector<int> b = {2, 3, 4, 7, 8};
@@ -245,7 +237,5 @@ int main()
 
     print(symdiff_result, "symmetric diff    → ");
     
-    
-
-    return EXIT_SUCCESS;
+    return 0;
 }
