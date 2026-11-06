@@ -1,6 +1,13 @@
 #include<iostream>
 using namespace std;
 
+
+void fun(int* ptr) { *ptr = 30; } // pass by ptr
+
+void bump(int& value) { ++value; } //pass by reference
+
+
+
 class Test
 {
 private:
@@ -32,7 +39,14 @@ int main()
     int& ref = number;
     
     
-    return EXIT_SUCCESS;
+    int x = 20;
+    fun(&x);
+    std::cout << "x = " << x << '\n';
+    bump(x);
+    std::cout << "x = " << x << '\n';
+    
+    
+    return 0;
 }
 
 
