@@ -14,9 +14,6 @@ int main()
     int random2 = rand()%100 +1;
     //limited range control
     
-    
-    
-    
     //random engines
     /*
      std::mt19937 Mersenne Twister
@@ -31,10 +28,7 @@ int main()
      std::normal_distribution
      std::bernoulli_distribution
      std::discrete_distribution
-     
-     
      */
-    
     
     
     //uniform integer distribution
@@ -57,5 +51,5 @@ int main()
     
     
     
-    return EXIT_SUCCESS;
+    return 0;
 }
