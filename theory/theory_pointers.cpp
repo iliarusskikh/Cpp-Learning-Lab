@@ -1,4 +1,56 @@
 #include <iostream>
+#include <string>
+#include <vector>
+
+
+
+void printnum(int* n) { std::cout << *n << '\n'; }
+
+void print(void* ptr, char type) {
+    switch (type) {
+        case 'i':
+            std::cout << *static_cast<int*>(ptr) << '\n';
+            break;
+        case 'c':
+            std::cout << *static_cast<char*>(ptr) << '\n';
+            break;
+        default:
+            break;
+    }
+}
+
+struct Human {
+    std::string name;
+    int age;
+    bool hasSwag;
+};
+
+void setHuman(Human* human) {
+    human->name = "lol";
+    human->age = 33;
+    human->hasSwag = false;
+}
+
+void PrintValue(int value) { std::cout << value << '\n'; }
+
+void ForEach(const std::vector<int>& values, void (*func)(int)) {
+    for (int value : values) {
+        func(value);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+class MyClass {};
 
 
 int compare(int a, int b){
@@ -219,7 +271,66 @@ int main(){
     operation = &add;
     int result = operation(1,4);
     
-    return EXIT_SUCCESS;
+    /* ---------------------------------------  */
+    
+    std::unique_ptr<int> unPtr1 = std::make_unique<int>(25);
+    std::unique_ptr<int> unPtr2 = std::move(unPtr1);
+    std::cout << (unPtr1 ? *unPtr1 : 0) << ' ' << *unPtr2 << '\n';
+
+    {
+        auto unPtr3 = std::make_unique<MyClass>();
+        (void)unPtr3;
+    }
+
+    auto shPtr = std::make_shared<MyClass>();
+    std::cout << shPtr.use_count() << '\n';
+    auto shPtr2 = shPtr;
+    std::cout << shPtr.use_count() << '\n';
+
+    std::weak_ptr<int> wePtr1;
+    {
+        auto shPtr1 = std::make_shared<int>(23);
+        wePtr1 = shPtr1;
+    }
+    std::cout << (wePtr1.expired() ? "expired\n" : "alive\n");
+    
+    
+    
+    
+    
+    
+    // More examples:
+    int n = 5;
+    int* ptr = &n;
+    *ptr = 10;
+    printnum(&n);
+
+    char letter = 'a';
+    print(&n, 'i');
+    print(&letter, 'c');
+
+    Human bob{"Bob", 56, false};
+    Human* bobPtr = &bob;
+    std::cout << bobPtr->age << '\n';
+
+    Human* human = new Human{"Lola", 33, true};
+    std::cout << human->name << '\n';
+    delete human;
+
+    Human* newHuman = new Human;
+    setHuman(newHuman);
+    delete newHuman;
+
+    const std::vector<int> values = {1, 2, 3, 4, 4};
+    ForEach(values, PrintValue);
+    
+    
+    
+    
+    
+    
+    
+    return 0;
 }
 
 
