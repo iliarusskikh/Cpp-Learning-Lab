@@ -1,3 +1,15 @@
+/*
+ When applying a C-standard cast int (e.g. a = (int) b;)
+ the compiler will try to apply the following C++ style casts (order undefined):
+ const_cast<T>
+ static_cast<T>
+ const_cast<static_cast<T>>
+ reinterpret_cast<T>
+ const_cast<reinterpret_cast<T>>
+ 
+ 
+ */
+
 #include <iostream>
 #include <memory>
 
@@ -29,7 +41,7 @@ public:
 
 int main()
 {
-
+    
     //implicit
     double value = 5.24;
     int a = value;
@@ -48,7 +60,7 @@ int main()
     //used across inheritance
     //could we promote child to parent?
     Animal* animal = new Dog();
-
+    
     // Safe downcast with dynamic_cast
     if (Dog* dog = dynamic_cast<Dog*>(animal)) {
         dog->fetchBall();           // now we can safely call Dog-specific method
@@ -59,7 +71,7 @@ int main()
     else {
         std::cout << "Unknown animal type\n";
     }
-
+    
     delete animal;
     
     //const task
@@ -68,6 +80,13 @@ int main()
     //static_cast = compile-time type checking
     //dynamic_cast = for polymorphic types
     //const_cast = add/remove const qualifier
+    void legacy_func(char* str){}
+    const char* my_text = "Hello";
+    legacy_func(const_cast<char*>(my_text));
+    //this function does not modify the string but takes non-const parameters only
+    //when trying to write into this variable - undefined behaviour
+    
+    
     //reinterpret_cast = low-level reinterpreting of bits (no checks)
     int num =43;
     int* ptr = #;
@@ -76,14 +95,16 @@ int main()
     
 
     
-    int *i = new int(44);
-    float *f = reinterpret_cast<float *>(i);
+    int* i = new int(44);
+    float* f = reinterpret_cast<float*>(i);
     std::cout << *f<<"\n";//undefined behaviour when accessing
     
     
     
+    void* raw_memory = malloc(100);
+    int* buffer = static_cast<int*>(raw_memory);
     
     
-    return EXIT_SUCCESS;
+    return 0;
 }
 
