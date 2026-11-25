@@ -130,5 +130,18 @@ int main() {
     collection.erase(newEnd, end(collection));
     
     
+    //std::sample
+    std::vector<int> units{1,4,6,32,-1,3,7};
+    std::vector<int> out;
+    std::sample(begin(units),end(units),
+                std::back_inserter(out),
+                3,
+                std::mt19937{std::random_device{}()}); //3 random ints
+    
+    
+    //std::rotate
+    
+    
+    
     return 0;
 }
