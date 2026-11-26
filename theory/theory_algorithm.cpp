@@ -1,3 +1,5 @@
+//pip install cppman for manuals
+// example: cppman -h
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -140,8 +142,17 @@ int main() {
     
     
     //std::rotate
+    std::vector<int> rot{1,4,6,32,-1,3,7};
+    std::rotate(rot.begin(), rot.begin()+2, rot.end()); //6,32,-1,3,7,1,4 -> pop from begin, push at the end
+    std::rotate(rot.begin(), rot.begin()+2, rot.end()-1);//skip last element
+    
+    
+    //std::shuffle
+    
     
     
     
     return 0;
 }
+
+
