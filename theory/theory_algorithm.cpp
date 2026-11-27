@@ -149,10 +149,19 @@ int main() {
     
     //std::shuffle
     
+    // 1. Obtain a non-deterministic seed from the OS/hardware
+    std::random_device rd;
+    // 2. Seed the Mersenne Twister PRNG engine with rd()
+    std::mt19937 gen(rd());
+    std::vector<int> shuf{1, 2, 3, 4, 5, 6, 8};
+    std::shuffle(shuf.begin(), shuf.end(), gen);
     
+    
+    //std::unique and unique_copy
+    std::vector<int> un{1, 2, 3, ,3,4, 5, 6, 11, 21, 123, 4, 5, 6, 8};
+
     
     
     return 0;
 }
-
 
